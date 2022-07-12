@@ -25,6 +25,6 @@ gcloud auth activate-service-account $SERVICE_ACCOUNT --key-file=$JSON_KEY_FILE 
 
 # Uploading Data to GCP
 echo "Uploading S&P 500 Full Stock Data $DATA_BUCKET/$FULL_DATASET_NAME"
-gsutil cp "$PWD/S&P_500_Full_Stock_Data.csv" "$DATA_BUCKET/$FULL_DATASET_NAME"
+gsutil cp "$PWD/$FULL_DATASET_NAME" "$DATA_BUCKET/$FULL_DATASET_NAME"
 rm "$PWD/$FULL_DATASET_NAME" "$PWD/S&P_500_Ticks.csv"
 echo "Data Upload Completed to $DATA_BUCKET/$FULL_DATASET_NAME"
