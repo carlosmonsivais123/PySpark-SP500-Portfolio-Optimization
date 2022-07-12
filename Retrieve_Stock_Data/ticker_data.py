@@ -21,7 +21,7 @@ class Get_Stock_Data:
         stock_data_df = pd.DataFrame(columns = ['Symbol', 'Date', 'Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume'])
 
         for ticker in tickers_list:
-            stock_data = yf.download("{}".format(ticker), start="2018-01-01", end="2022-06-07")
+            stock_data = yf.download("{}".format(ticker), start="2016-01-01", end="2022-06-07")
             stock_data.reset_index(inplace = True, drop = False)
             stock_data['Symbol'] = ticker
             stock_data_df = pd.concat([stock_data_df, stock_data], ignore_index=True)
