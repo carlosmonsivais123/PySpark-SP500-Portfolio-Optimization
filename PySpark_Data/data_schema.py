@@ -14,3 +14,5 @@ class Original_Schema:
                                    StructField('Category2', StringType(), False),
                                    StructField('Category3', StringType(), False),
                                    StructField('GICS Sector', StringType(), False)])
+
+        return stock_schema
