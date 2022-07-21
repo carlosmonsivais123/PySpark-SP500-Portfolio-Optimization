@@ -13,6 +13,9 @@ import seaborn as sns
 from matplotlib import ticker
 
 class Data_Cleaning_Stock:
+    def __init__(self):
+        self.gcp_functions = Upload_To_GCP()
+
     def read_in_data(self):
         spark = SparkSession.builder.appName("stock").getOrCreate()
         sc = spark.sparkContext
@@ -27,7 +30,7 @@ class Data_Cleaning_Stock:
 
         return self.stock_df
 
-    def null_value_analysis(self)
+    def null_value_analysis(self):
         # Only looking at ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume'] columns because the schema defined the other columns as not nullable.
         null_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
         eda_log_string = ""
@@ -89,21 +92,12 @@ class Data_Cleaning_Stock:
             ax.set_aspect(w/h)
             
         fig.delaxes(axes[n_rows - 1, -1])
-        plt.tight_layout() 
-        
-         
+        plt.tight_layout()
+        fig.savefig("null_heatmap.png")
+
+        # Uploading this heatmap figure up to GCP bucket
+        self.gcp_functions.upload_filename(bucket_name="stock-sp500", file_name= "null_heatmap.png", destination_blob_name="Logs/eda_test.txt")
 
 
-
-
-
-
-
-
-    # from google.cloud import storage
-
-    # # def write_to_blob(bucket_name,file_name):
-    # storage_client = storage.Client()
-    # bucket = storage_client.bucket("stock-sp500")
-    # blob = bucket.blob("Logs/eda23.txt")
-    # blob.upload_from_string("{}".format(nulls_test._jdf.showString(20, 0, False)))
+        # Uploading compiled strings into GCP bucket
+        self.gcp_functions.upload_string_message(bucket_name="stock-sp500", contents=eda_log_string, destination_blob_name="Logs/eda_test.txt")
