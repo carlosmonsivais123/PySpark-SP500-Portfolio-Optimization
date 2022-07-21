@@ -13,7 +13,7 @@ import seaborn as sns
 from matplotlib import ticker
 
 class Data_Cleaning_Stock:
-    def clean_full_stock_data():
+    def read_in_data(self):
         spark = SparkSession.builder.appName("stock").getOrCreate()
         sc = spark.sparkContext
         data_file = "gs://stock-sp500/Data/S&P_500_Full_Stock_Data.csv"
@@ -21,27 +21,30 @@ class Data_Cleaning_Stock:
         og_schema = Original_Schema()
         stock_schema = og_schema.full_stock_data_schema()
 
-        stock_df = spark.read.csv(data_file,
+        self.stock_df = spark.read.csv(data_file,
                             header = True,
                             schema = stock_schema).cache()
 
+        return self.stock_df
+
+    def null_value_analysis(self)
         # Only looking at ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume'] columns because the schema defined the other columns as not nullable.
         null_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
         eda_log_string = ""
 
         # 1. Number of Null values per column
-        nulls_test = stock_df.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in null_columns])
+        nulls_test = self.stock_df.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in null_columns])
         eda_log_string += f"{datetime.now()}: {nulls_test._jdf.showString(20, 0, False)}\n"
 
         # 2. Creating dataframe with the null values
-        agg_expression = [F.sum(when(stock_df[x].isNull(), 1).otherwise(0)).alias(x) for x in null_columns]
-        null_values_by_stock = stock_df.groupby("Symbol").agg(*agg_expression)
+        agg_expression = [F.sum(when(self.stock_df[x].isNull(), 1).otherwise(0)).alias(x) for x in null_columns]
+        null_values_by_stock = self.stock_df.groupby("Symbol").agg(*agg_expression)
         null_values_by_stock = null_values_by_stock.withColumn('Missing Values Sum', sum([F.col(c) for c in null_columns]))
         null_values_by_stock = null_values_by_stock.filter(null_values_by_stock["Missing Values Sum"] > 0)
         eda_log_string += f"{datetime.now()}: {null_values_by_stock._jdf.showString(20, 0, False)}\n"
 
         # 3. Counting the number of missing values
-        stock_df_missing_values = stock_df.filter(col("Open").isNull()|col("High").isNull()\
+        stock_df_missing_values = self.stock_df.filter(col("Open").isNull()|col("High").isNull()\
                                                  |col("Low").isNull()|col("Close").isNull()\
                                                  |col("Adj Close").isNull()|col("Volume").isNull())
         num_misssing_rows = "There are {} rows with missing values.".format(stock_df_missing_values.count())
@@ -86,7 +89,9 @@ class Data_Cleaning_Stock:
             ax.set_aspect(w/h)
             
         fig.delaxes(axes[n_rows - 1, -1])
-        plt.tight_layout()  
+        plt.tight_layout() 
+        
+         
 
 
 
