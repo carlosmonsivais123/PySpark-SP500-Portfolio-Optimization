@@ -26,6 +26,7 @@ eval $(parse_yaml "$PWD/config.yaml")
 gcloud auth activate-service-account $SERVICE_ACCOUNT --key-file=$JSON_KEY_FILE --project=$PROJECT_ID
 
 
+
 bucket_name=my-example-bucket
 local_foder_list=(
   GCP_Functions
@@ -34,7 +35,7 @@ local_foder_list=(
 )
 
 for folder in "${local_foder_list[@]}"; do
-   gcloud alpha storage cp -r $folder* $PYTHON_FILES_BUCKET/
+    gsutil -m cp -r $folder $PYTHON_FILES_BUCKET/
 done
 
 
