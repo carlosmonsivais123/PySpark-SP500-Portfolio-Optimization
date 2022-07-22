@@ -25,6 +25,7 @@ eval $(parse_yaml "$PWD/config.yaml")
 # Logging into GCP
 gcloud auth activate-service-account $SERVICE_ACCOUNT --key-file=$JSON_KEY_FILE --project=$PROJECT_ID
 
+# Uploading zipped PySpark files into DataProc along with the main.py file that will be run in the cluster.
 Upload_Files=(
   PySpark_Files.zip
   main.py
