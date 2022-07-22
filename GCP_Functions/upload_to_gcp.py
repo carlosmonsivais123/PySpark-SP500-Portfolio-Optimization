@@ -1,7 +1,7 @@
 from google.cloud import storage
 
 class Upload_To_GCP:
-    def upload_string_message(bucket_name, contents, destination_blob_name):
+    def upload_string_message(self, bucket_name, contents, destination_blob_name):
         """Uploads a file to the bucket."""
 
         # The ID of your GCS bucket
@@ -22,7 +22,7 @@ class Upload_To_GCP:
         print(f"{destination_blob_name} with contents {contents} uploaded to {bucket_name}.")
 
 
-    def upload_filename(bucket_name, file_name, destination_blob_name):
+    def upload_filename(self, bucket_name, file_name, destination_blob_name):
         """Uploads a file to the bucket."""
 
         # The ID of your GCS bucket
