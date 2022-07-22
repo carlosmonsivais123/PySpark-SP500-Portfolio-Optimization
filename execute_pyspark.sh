@@ -55,4 +55,4 @@ gcloud dataproc clusters create stock-cluster \
 gcloud dataproc jobs submit pyspark 'gs://stock-sp500/Spark_Files/main.py' \
 --cluster='stock-cluster' \
 --region='us-central1' \
---py-files='gs://stock-sp500/Spark_Files/Archive.zip'
+--py-files='gs://stock-sp500/Spark_Files/PySpark_Files.zip'
