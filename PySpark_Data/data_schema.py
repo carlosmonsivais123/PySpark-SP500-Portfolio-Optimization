@@ -1,7 +1,7 @@
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType, TimestampType
 
 class Original_Schema:
-    def full_stock_data_schema():
+    def full_stock_data_schema(self):
         stock_schema = StructType([StructField('Symbol', StringType(), False),
                                    StructField('Date', TimestampType(), False),
                                    StructField('Open', FloatType(), True),

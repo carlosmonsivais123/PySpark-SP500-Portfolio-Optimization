@@ -18,7 +18,7 @@ function parse_yaml {
 eval $(parse_yaml "$PWD/config.yaml")
 
 # Extracting Data
-python main.py
+python retreive_main.py
 
 # Logging into GCP
 gcloud auth activate-service-account $SERVICE_ACCOUNT --key-file=$JSON_KEY_FILE --project=$PROJECT_ID

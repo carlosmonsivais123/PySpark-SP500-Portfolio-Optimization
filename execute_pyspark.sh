@@ -25,30 +25,34 @@ eval $(parse_yaml "$PWD/config.yaml")
 # Logging into GCP
 gcloud auth activate-service-account $SERVICE_ACCOUNT --key-file=$JSON_KEY_FILE --project=$PROJECT_ID
 
-
-
-bucket_name=my-example-bucket
-local_foder_list=(
+local_folder_list=(
   GCP_Functions
   PySpark_Data
   PySpark_EDA
 )
 
-for folder in "${local_foder_list[@]}"; do
-    gsutil -m cp -r $folder $PYTHON_FILES_BUCKET/
+local_file_list=(
+  main.py
+)
+
+
+for folder in "${local_folder_list[@]}"; do
+    zip -r "$PWD/$folder.zip" "$PWD/$folder"
 done
 
+for folder in "${local_folder_list[@]}"; do
+    gsutil -m cp -r "$folder.zip" $PYTHON_FILES_BUCKET/
+done
 
+for folder in "${local_folder_list[@]}"; do
+    rm "$PWD/$folder.zip"
+done
 
-# Uploading PySpark Files
-# gcloud alpha storage cp --recursive GCP_Functions $PYTHON_FILES_BUCKET/
-# gcloud alpha storage cp --recursive PySpark_Data $PYTHON_FILES_BUCKET/
-# gcloud alpha storage cp --recursive PySpark_EDA $PYTHON_FILES_BUCKET/
+for file in "${local_file_list[@]}"; do
+    gsutil -m cp $file $PYTHON_FILES_BUCKET/
+done
 
-
-
-
-# # Creating and DataProc cluster on Compute Engine in GCP to execute PySpark Files that were uploaded above
+# Creating and DataProc cluster on Compute Engine in GCP to execute PySpark Files that were uploaded above
 # gcloud dataproc clusters create stock-cluster \
 # --enable-component-gateway \
 # --region us-central1 \
@@ -59,3 +63,22 @@ done
 # --image-version 2.0-debian10 \
 # --optional-components JUPYTER --scopes 'https://www.googleapis.com/auth/cloud-platform' \
 # --project airy-digit-356101
+
+
+# gsutil cp "/Users/CarlosMonsivais/Desktop/PySpark-SP500-Portfolio-Optimization/GCP_Functions.zip" $PYTHON_FILES_BUCKET/
+# gsutil cp "/Users/CarlosMonsivais/Desktop/PySpark-SP500-Portfolio-Optimization/PySpark_Data.zip" $PYTHON_FILES_BUCKET/
+# gsutil cp "/Users/CarlosMonsivais/Desktop/PySpark-SP500-Portfolio-Optimization/PySpark_EDA.zip" $PYTHON_FILES_BUCKET/
+
+
+# gcloud dataproc jobs submit pyspark 'gs://stock-sp500/Spark_Files/main.py' \
+# --cluster='stock-cluster' \
+# --region='us-central1' \
+# --py-files='gs://stock-sp500/Spark_Files/GCP_Functions.zip','gs://stock-sp500/Spark_Files/PySpark_Data.zip','gs://stock-sp500/Spark_Files/PySpark_EDA.zip'
+
+
+
+
+# For loop zip the files
+# upload them to gcp
+# run the job on dataproc
+# fix the error.
