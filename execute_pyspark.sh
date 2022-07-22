@@ -39,8 +39,7 @@ done
 
 rm "$PWD/PySpark_Files.zip"
 
-
-# Creating and DataProc cluster on Compute Engine in GCP to execute PySpark Files that were uploaded above
+# Creating and DataProc cluster on Compute Engine in GCP
 gcloud dataproc clusters create stock-cluster \
 --enable-component-gateway \
 --region us-central1 \
@@ -52,10 +51,8 @@ gcloud dataproc clusters create stock-cluster \
 --optional-components JUPYTER --scopes 'https://www.googleapis.com/auth/cloud-platform' \
 --project airy-digit-356101
 
+# Executing PySpark Files that were uploaded above
 gcloud dataproc jobs submit pyspark 'gs://stock-sp500/Spark_Files/main.py' \
 --cluster='stock-cluster' \
 --region='us-central1' \
 --py-files='gs://stock-sp500/Spark_Files/Archive.zip'
---py-files='gs://stock-sp500/Spark_Files/GCP_Functions.zip','gs://stock-sp500/Spark_Files/PySpark_Data.zip','gs://stock-sp500/Spark_Files/PySpark_EDA.zip'
-
-# fix the error.
