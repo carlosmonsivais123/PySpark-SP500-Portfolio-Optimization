@@ -1,5 +1,5 @@
-from PySpark_Data.data_schema import Original_Schema
-from GCP_Functions.upload_to_gcp import Upload_To_GCP
+from data_schema import Original_Schema
+from upload_to_gcp import Upload_To_GCP
 
 from pyspark.sql import SparkSession, functions as F
 from pyspark.sql.functions import isnan, when, count, col, date_format, year, month, dayofmonth, lag,\
@@ -37,21 +37,21 @@ class Data_Cleaning_Stock:
 
         # 1. Number of Null values per column
         nulls_test = self.stock_df.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in null_columns])
-        eda_log_string += f"{datetime.now()}: {nulls_test._jdf.showString(20, 0, False)}\n"
+        eda_log_string += f"{datetime.now()}: \n{nulls_test._jdf.showString(20, 0, False)}\n"
 
         # 2. Creating dataframe with the null values
         agg_expression = [F.sum(when(self.stock_df[x].isNull(), 1).otherwise(0)).alias(x) for x in null_columns]
         null_values_by_stock = self.stock_df.groupby("Symbol").agg(*agg_expression)
         null_values_by_stock = null_values_by_stock.withColumn('Missing Values Sum', sum([F.col(c) for c in null_columns]))
         null_values_by_stock = null_values_by_stock.filter(null_values_by_stock["Missing Values Sum"] > 0)
-        eda_log_string += f"{datetime.now()}: {null_values_by_stock._jdf.showString(20, 0, False)}\n"
+        eda_log_string += f"{datetime.now()}: \n{null_values_by_stock._jdf.showString(20, 0, False)}\n"
 
         # 3. Counting the number of missing values
         stock_df_missing_values = self.stock_df.filter(col("Open").isNull()|col("High").isNull()\
                                                  |col("Low").isNull()|col("Close").isNull()\
                                                  |col("Adj Close").isNull()|col("Volume").isNull())
         num_misssing_rows = "There are {} rows with missing values.".format(stock_df_missing_values.count())
-        eda_log_string += f"{datetime.now()}: {num_misssing_rows}\n"
+        eda_log_string += f"{datetime.now()}: \n{num_misssing_rows}\n"
 
         #4. Missing values heatmap visualization per ticker
         pandas_missing_values = stock_df_missing_values.toPandas()
@@ -96,7 +96,7 @@ class Data_Cleaning_Stock:
         fig.savefig("null_heatmap.png")
 
         # Uploading this heatmap figure up to GCP bucket
-        self.gcp_functions.upload_filename(bucket_name="stock-sp500", file_name= "null_heatmap.png", destination_blob_name="Logs/eda_test.txt")
+        self.gcp_functions.upload_filename(bucket_name="stock-sp500", file_name= "null_heatmap.png", destination_blob_name="Logs/null_heatmap.png")
 
 
         # Uploading compiled strings into GCP bucket

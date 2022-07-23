@@ -25,34 +25,39 @@ eval $(parse_yaml "$PWD/config.yaml")
 # Logging into GCP
 gcloud auth activate-service-account $SERVICE_ACCOUNT --key-file=$JSON_KEY_FILE --project=$PROJECT_ID
 
-# Uploading zipped PySpark files into DataProc along with the main.py file that will be run in the cluster.
-Upload_Files=(
-  PySpark_Files.zip
-  main.py
+# Uploading Folders and file to GCP Bucket
+Upload_Folders=(
+  GCP_Functions
+  PySpark_Data
+  PySpark_EDA
 )
 
-zip -r "$PWD/PySpark_Files.zip" "$PWD/GCP_Functions" "$PWD/PySpark_Data" "$PWD/PySpark_EDA"
-
-for file in "${Upload_Files[@]}"; do
-    gsutil -m cp "$file" $PYTHON_FILES_BUCKET/
+for folder in "${Upload_Folders[@]}";do
+    gsutil -m cp "$PWD/$folder/*" $PYTHON_FILES_BUCKET/$folder/
 done
 
-rm "$PWD/PySpark_Files.zip"
+gsutil -m cp "/Users/CarlosMonsivais/Desktop/PySpark-SP500-Portfolio-Optimization/main.py" $PYTHON_FILES_BUCKET/
+
 
 # Creating and DataProc cluster on Compute Engine in GCP
-gcloud dataproc clusters create stock-cluster \
---enable-component-gateway \
---region us-central1 \
---zone us-central1-a \
---master-machine-type n1-standard-4 --master-boot-disk-size 500 \
---num-workers 2 \
---worker-machine-type n1-standard-4 --worker-boot-disk-size 500 \
---image-version 2.0-debian10 \
---optional-components JUPYTER --scopes 'https://www.googleapis.com/auth/cloud-platform' \
---project airy-digit-356101
+# gcloud dataproc clusters create stock-cluster \
+# --enable-component-gateway \
+# --region us-central1 \
+# --zone us-central1-a \
+# --master-machine-type n1-standard-4 --master-boot-disk-size 500 \
+# --num-workers 2 \
+# --worker-machine-type n1-standard-4 --worker-boot-disk-size 500 \
+# --image-version 2.0-debian10 \
+# --optional-components JUPYTER --scopes 'https://www.googleapis.com/auth/cloud-platform' \
+# --project airy-digit-356101
+
 
 # Executing PySpark Files that were uploaded above
 gcloud dataproc jobs submit pyspark 'gs://stock-sp500/Spark_Files/main.py' \
+--project=$PROJECT_ID \
 --cluster='stock-cluster' \
 --region='us-central1' \
---py-files='gs://stock-sp500/Spark_Files/PySpark_Files.zip'
+--py-files='gs://stock-sp500/Spark_Files/GCP_Functions/upload_to_gcp.py',\
+'gs://stock-sp500/Spark_Files/PySpark_Data/data_cleaning.py',\
+'gs://stock-sp500/Spark_Files/PySpark_Data/data_schema.py',\
+'gs://stock-sp500/Spark_Files/PySpark_EDA/stock_plots.py'
