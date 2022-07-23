@@ -95,6 +95,16 @@ class Data_Cleaning_Stock:
         plt.tight_layout()
         fig.savefig("null_heatmap.png")
 
+        #5. Removing Symbols with null values.
+        remove_symbols = np.array(null_values_by_stock.select('Symbol').collect()).reshape(-1)
+        for value in remove_symbols:
+            cond = (F.col('Symbol') == value)
+            self.stock_df = self.stock_df.filter(~cond)
+        removed_missing_values_1 = self.stock_df.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in null_columns])
+
+        eda_log_string += f'''\n{datetime.now()}: \n{removed_missing_values_1._jdf.showString(20, 0, False)}\
+Now we don't have any missing values in the main data columns we will be using to model.'''
+
         # Uploading this heatmap figure up to GCP bucket
         self.gcp_functions.upload_filename(bucket_name="stock-sp500", file_name= "null_heatmap.png", destination_blob_name="Logs/null_heatmap.png")
 
