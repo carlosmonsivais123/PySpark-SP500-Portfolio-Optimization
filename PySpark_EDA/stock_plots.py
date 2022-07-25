@@ -13,4 +13,23 @@ import seaborn as sns
 from matplotlib import ticker
 
 class EDA_Plots:
-    
+    def __init__(self):
+        self.gcp_functions = Upload_To_GCP()
+
+    def read_in_data_data_cleaning(self):
+        spark = SparkSession.builder.appName("stock_clean").getOrCreate()
+        sc = spark.sparkContext
+
+        clean_data_file = self.gcp_functions.list_blobs(bucket_name = "gs://stock-sp500/Data/S&P_500_Clean_Data.csv")
+        print(clean_data_file)
+
+        # data_file = "gs://stock-sp500/Data/S&P_500_Full_Stock_Data.csv"
+
+        # og_schema = Original_Schema()
+        # stock_schema = og_schema.full_stock_data_schema()
+
+        # self.stock_df = spark.read.csv(data_file,
+        #                     header = True,
+        #                     schema = stock_schema).cache()
+
+        # return self.stock_df

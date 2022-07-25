@@ -43,7 +43,7 @@ class Upload_To_GCP:
         print(f"{destination_blob_name} with files {file_name} uploaded to {bucket_name}.")
 
 
-    def list_blobs(bucket_name):
+    def list_blobs(self, bucket_name):
         """Lists all the blobs in the bucket."""
         # bucket_name = "your-bucket-name"
         files_in_bucket=[]
