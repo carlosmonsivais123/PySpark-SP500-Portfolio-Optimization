@@ -2,14 +2,12 @@ from data_schema import Original_Schema
 from upload_to_gcp import Upload_To_GCP
 
 from pyspark.sql import SparkSession, functions as F
-from pyspark.sql.functions import isnan, when, count, col, date_format, year, month, dayofmonth, lag,\
-round, regexp_replace, max, min, avg, stddev
+from pyspark.sql.functions import isnan, when, count, col, date_format, year, month, dayofmonth, lag, regexp_replace
 from pyspark.sql.window import Window
 
 from datetime import datetime
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 from matplotlib import ticker
 
 class Data_Cleaning_Stock:
@@ -17,7 +15,7 @@ class Data_Cleaning_Stock:
         self.gcp_functions = Upload_To_GCP()
         
 
-    def read_in_data(self):
+    def read_in_data_data_cleaning(self):
         spark = SparkSession.builder.appName("stock").getOrCreate()
         sc = spark.sparkContext
         data_file = "gs://stock-sp500/Data/S&P_500_Full_Stock_Data.csv"
@@ -112,7 +110,7 @@ class Data_Cleaning_Stock:
         removed_missing_values_1 = self.stock_df.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in null_columns])
 
         eda_log_string += f'''\n{datetime.now()}: \n{removed_missing_values_1._jdf.showString(20, 0, False)}\
-Now we don't have any missing values in the main data columns we will be using to model.'''
+Now we don't have any missing values in the main data columns we will be using.\n'''
 
 
         # 6. Feature Creation
@@ -141,13 +139,30 @@ Now we don't have any missing values in the main data columns we will be using t
 
         # 7. Clean dataframe with new feautures
         stock_df_new_null_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume', 'day_of_week',
-        'year', 'month', 'day_of_month', 'lag_1', 'lag_2', 'lag_3', 'lag_4', 'lag_5', 'lag_6', 'daily_return', 'cum_return']
+        'year', 'month', 'day_of_month', 'lag_1', 'lag_2', 'lag_3', 'lag_4', 'lag_5', 'lag_6', 'daily_return', 'cumulative_return']
         missing_values_2 = self.stock_df_new.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in stock_df_new_null_columns])
         eda_log_string += f'''\n{datetime.now()}: \n{missing_values_2._jdf.showString(20, 0, False)}\
-Now we don't have any missing values in the main data columns we will be using to model.'''
+Due to the lag features created, we lost 6 rows per stock symbol.\n'''
+
+        self.stock_df_new = self.stock_df_new.dropna(how='any')
+        missing_values3 = self.stock_df_new.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in stock_df_new_null_columns])
+        eda_log_string += f'''\n{datetime.now()}: \n{missing_values3._jdf.showString(20, 0, False)}\
+Now we don't have any missing values in the main data columns we will be uploading to GCP as the clean dataset.\n'''
+
+        # GICS sector clean up
+        self.stock_df_new = self.stock_df_new.\
+            withColumn('GICS Sector', regexp_replace('GICS Sector', 'Information technology', 'Information Technology'))
 
 
+        # 8. Pushing clean stock data with features into GCP bucket
+        self.stock_df_new.coalesce(1)\
+                .write\
+                    .option('header', 'true')\
+                        .csv('gs://stock-sp500/Data/S&P_500_Clean_Data.csv', mode='overwrite')
+
+        eda_log_string += f'''\n{datetime.now()}: \n\
+Clean data uploaded to GCP SUCCESFULLY.'''        
 
 
-        # Uploading compiled strings into GCP bucket as a text file called eda_test.txt
+        # 9. Uploading compiled strings into GCP bucket as a text file called eda_test.txt
         self.gcp_functions.upload_string_message(bucket_name="stock-sp500", contents=eda_log_string, destination_blob_name="Logs/eda_test.txt")

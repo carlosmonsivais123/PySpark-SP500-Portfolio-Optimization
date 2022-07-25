@@ -41,3 +41,19 @@ class Upload_To_GCP:
         blob.upload_from_filename(file_name)
 
         print(f"{destination_blob_name} with files {file_name} uploaded to {bucket_name}.")
+
+
+    def list_blobs(bucket_name):
+        """Lists all the blobs in the bucket."""
+        # bucket_name = "your-bucket-name"
+        files_in_bucket=[]
+
+        storage_client = storage.Client()
+
+        # Note: Client.list_blobs requires at least package version 1.17.0.
+        blobs = storage_client.list_blobs(bucket_name)
+
+        for blob in blobs:
+            files_in_bucket.append(blob.name)
+
+        return files_in_bucket
