@@ -15,6 +15,7 @@ from matplotlib import ticker
 class Data_Cleaning_Stock:
     def __init__(self):
         self.gcp_functions = Upload_To_GCP()
+        
 
     def read_in_data(self):
         spark = SparkSession.builder.appName("stock").getOrCreate()
@@ -35,9 +36,11 @@ class Data_Cleaning_Stock:
         null_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
         eda_log_string = ""
 
+
         # 1. Number of Null values per column
         nulls_test = self.stock_df.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in null_columns])
         eda_log_string += f"{datetime.now()}: \n{nulls_test._jdf.showString(20, 0, False)}\n"
+
 
         # 2. Creating dataframe with the null values
         agg_expression = [F.sum(when(self.stock_df[x].isNull(), 1).otherwise(0)).alias(x) for x in null_columns]
@@ -46,6 +49,7 @@ class Data_Cleaning_Stock:
         null_values_by_stock = null_values_by_stock.filter(null_values_by_stock["Missing Values Sum"] > 0)
         eda_log_string += f"{datetime.now()}: \n{null_values_by_stock._jdf.showString(20, 0, False)}\n"
 
+
         # 3. Counting the number of missing values
         stock_df_missing_values = self.stock_df.filter(col("Open").isNull()|col("High").isNull()\
                                                  |col("Low").isNull()|col("Close").isNull()\
@@ -53,7 +57,8 @@ class Data_Cleaning_Stock:
         num_misssing_rows = "There are {} rows with missing values.".format(stock_df_missing_values.count())
         eda_log_string += f"{datetime.now()}: \n{num_misssing_rows}\n"
 
-        #4. Missing values heatmap visualization per ticker
+
+        # 4. Missing values heatmap visualization per ticker
         pandas_missing_values = stock_df_missing_values.toPandas()
         missing_stock_symbols = pandas_missing_values['Symbol'].unique().tolist()
 
@@ -95,7 +100,11 @@ class Data_Cleaning_Stock:
         plt.tight_layout()
         fig.savefig("null_heatmap.png")
 
-        #5. Removing Symbols with null values.
+        # Uploading this heatmap figure up to GCP bucket
+        self.gcp_functions.upload_filename(bucket_name="stock-sp500", file_name= "null_heatmap.png", destination_blob_name="Logs/null_heatmap.png")
+
+
+        # 5. Removing Symbols with null values.
         remove_symbols = np.array(null_values_by_stock.select('Symbol').collect()).reshape(-1)
         for value in remove_symbols:
             cond = (F.col('Symbol') == value)
@@ -105,9 +114,40 @@ class Data_Cleaning_Stock:
         eda_log_string += f'''\n{datetime.now()}: \n{removed_missing_values_1._jdf.showString(20, 0, False)}\
 Now we don't have any missing values in the main data columns we will be using to model.'''
 
-        # Uploading this heatmap figure up to GCP bucket
-        self.gcp_functions.upload_filename(bucket_name="stock-sp500", file_name= "null_heatmap.png", destination_blob_name="Logs/null_heatmap.png")
+
+        # 6. Feature Creation
+        # Date Features: day_of_week, month, year, day_of_month variables.
+        self.stock_df_new = self.stock_df.withColumn("day_of_week", date_format(col("Date"), "EEEE"))\
+            .withColumn("year", year(col("Date")))\
+                .withColumn("month", month(col("Date")))\
+                    .withColumn("day_of_month", dayofmonth(col("Date")))
+
+        # Lag Features: lag_1, lag_2, lag_3, lag_4, lag_5, lag_6
+        windowSpec = Window.partitionBy("Symbol").orderBy("Symbol")
+        self.stock_df_new = self.stock_df_new.withColumn("lag_1", lag("Close",1).over(windowSpec))\
+            .withColumn("lag_2", lag("Close",2).over(windowSpec))\
+                .withColumn("lag_3", lag("Close",3).over(windowSpec))\
+                    .withColumn("lag_4", lag("Close",4).over(windowSpec))\
+                        .withColumn("lag_5", lag("Close",5).over(windowSpec))\
+                            .withColumn("lag_6", lag("Close",6).over(windowSpec))
+
+        # Daily Return Feature: daily_return
+        self.stock_df_new = self.stock_df_new.withColumn('daily_return', (self.stock_df_new['Close'] - self.stock_df_new['Open']))
+
+        # Cummulative Return Feature:
+        cummulative_window = (Window.partitionBy('Symbol').orderBy('Date').rangeBetween(Window.unboundedPreceding, 0))
+        self.stock_df_new = self.stock_df_new.withColumn('cumulative_return', F.sum('daily_return').over(cummulative_window))
 
 
-        # Uploading compiled strings into GCP bucket
+        # 7. Clean dataframe with new feautures
+        stock_df_new_null_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume', 'day_of_week',
+        'year', 'month', 'day_of_month', 'lag_1', 'lag_2', 'lag_3', 'lag_4', 'lag_5', 'lag_6', 'daily_return', 'cum_return']
+        missing_values_2 = self.stock_df_new.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in stock_df_new_null_columns])
+        eda_log_string += f'''\n{datetime.now()}: \n{missing_values_2._jdf.showString(20, 0, False)}\
+Now we don't have any missing values in the main data columns we will be using to model.'''
+
+
+
+
+        # Uploading compiled strings into GCP bucket as a text file called eda_test.txt
         self.gcp_functions.upload_string_message(bucket_name="stock-sp500", contents=eda_log_string, destination_blob_name="Logs/eda_test.txt")
