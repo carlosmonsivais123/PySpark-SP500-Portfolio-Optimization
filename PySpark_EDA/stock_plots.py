@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib import ticker
+import re
 
 class EDA_Plots:
     def __init__(self):
@@ -20,16 +21,20 @@ class EDA_Plots:
         spark = SparkSession.builder.appName("stock_clean").getOrCreate()
         sc = spark.sparkContext
 
-        clean_data_file = self.gcp_functions.list_blobs(bucket_name = "gs://stock-sp500/Data/S&P_500_Clean_Data.csv")
-        print(clean_data_file)
+        gcp_data_files = self.gcp_functions.list_blobs(bucket_name = "stock-sp500")
+        clean_data_file_name = [x for x in gcp_data_files if re.match(r'Data/S&P_500_Clean_Data.csv/part*',x)][0]
 
-        # data_file = "gs://stock-sp500/Data/S&P_500_Full_Stock_Data.csv"
+        full_bucket_name = "gs://stock-sp500/"+clean_data_file_name
 
-        # og_schema = Original_Schema()
-        # stock_schema = og_schema.full_stock_data_schema()
+        og_schema = Original_Schema()
+        stock_schema = og_schema.full_stock_data_schema()
 
-        # self.stock_df = spark.read.csv(data_file,
-        #                     header = True,
-        #                     schema = stock_schema).cache()
+        self.stock_df_clean = spark.read.csv(full_bucket_name,
+                                             header = True,
+                                             schema = stock_schema).cache()
 
-        # return self.stock_df
+        return self.stock_df_clean
+
+    def eda_plot_creation(self):
+        # Category Counts
+        
