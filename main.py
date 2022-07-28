@@ -9,3 +9,5 @@ from stock_plots import EDA_Plots
 # EDA: stock_plots.py
 eda_plots = EDA_Plots()
 eda_plots.read_in_data_data_cleaning()
+eda_plots.eda_category_counts()
+eda_plots.best_day_of_week_stocks()

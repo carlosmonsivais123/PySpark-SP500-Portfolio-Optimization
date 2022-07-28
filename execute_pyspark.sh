@@ -39,7 +39,7 @@ done
 gsutil -m cp "/Users/CarlosMonsivais/Desktop/PySpark-SP500-Portfolio-Optimization/main.py" $PYTHON_FILES_BUCKET/
 
 
-# Creating and DataProc cluster on Compute Engine in GCP
+# # Creating and DataProc cluster on Compute Engine in GCP
 # gcloud dataproc clusters create stock-cluster \
 # --enable-component-gateway \
 # --region us-central1 \
