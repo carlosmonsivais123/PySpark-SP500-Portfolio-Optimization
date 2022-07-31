@@ -6,6 +6,8 @@ from pyspark.sql.functions import when, col, max, min, avg, stddev, first
 from pyspark.ml.stat import Correlation
 from pyspark.ml.feature import VectorAssembler
 
+from pyspark.sql.types import DoubleType
+
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -257,67 +259,37 @@ class EDA_Plots:
 
         stock_symbol_corr = corr_stock_df.groupBy("Date").pivot("Symbol").agg(avg("Close"))
         stock_symbol_corr = stock_symbol_corr.orderBy('Date', ascending=True)
-
-        # stock_symbols = stock_symbol_corr.columns
-
-        # This is the change
-        stock_symbol_corr = stock_symbol_corr.drop("Date")
         
-        # stock_symbols.remove('Date')
 
-        stock_symbol_corr = stock_symbol_corr.dropna(how = 'any')
-
-        stock_symbol_corr.show(2)
-
-
-
-
-
-
-        # # convert to vector column first
-        # vector_col = "corr_features"
-        # assembler = VectorAssembler(inputCols=stock_symbols, outputCol=vector_col)
-        # df_vector = assembler.transform(stock_symbol_corr).select(vector_col)
-
-        # # get correlation matrix
-        # matrix = Correlation.corr(df_vector, vector_col,"pearson")
-        # corr_vals = matrix.collect()[0][0]
-        # corr_array = corr_vals.toArray()
-
+        double_cols = [f.name for f in stock_symbol_corr.schema.fields if isinstance(f.dataType, DoubleType)]
+        integer_df = stock_symbol_corr[[double_cols]]
+        integer_df_drop_na = integer_df.na.drop("any")
 
         vector_col = "corr_features"
-        assembler = VectorAssembler(inputCols = stock_symbol_corr.columns, 
+        assembler = VectorAssembler(inputCols = integer_df_drop_na.columns, 
                                     outputCol = vector_col)
-        df_vector = assembler.transform(stock_symbol_corr).select(vector_col)
+        df_vector = assembler.transform(integer_df_drop_na).select(vector_col)
 
         matrix = Correlation.corr(df_vector, vector_col).collect()[0][0]
-        corrmatrix = matrix.toArray().tolist()
-        print(corrmatrix)
-
-        # convert to vector column first
-        # vector_col = "corr_features"
-        # assembler = VectorAssembler(inputCols=stock_symbols, outputCol=vector_col)
-        # df_vector = assembler.transform(stock_symbol_corr).select(vector_col)
-
-        # matrix = Correlation.corr(df_vector, vector_col)
-        # cor_np = matrix.collect()[0][matrix.columns[0]].toArray()
-        
+        # corrmatrix = matrix.toArray().tolist()
+        corrmatrix = matrix.toArray()
 
 
 
+        # Uncomment below to plot this, just chnage the name from rows to corrmatrix
         fig, ax = plt.subplots(figsize=(15,15))
-        heatmap = ax.pcolor(rows, cmap=plt.cm.Blues)
+        heatmap = ax.pcolor(corrmatrix, cmap=plt.cm.Blues)
 
         # put the major ticks at the middle of each cell
-        ax.set_xticks(np.arange(rows.shape[0])+0.5, minor=False)
-        ax.set_yticks(np.arange(rows.shape[1])+0.5, minor=False)
+        ax.set_xticks(np.arange(corrmatrix.shape[0])+0.5, minor=False)
+        ax.set_yticks(np.arange(corrmatrix.shape[1])+0.5, minor=False)
 
         # want a more natural, table-like display
         ax.invert_yaxis()
         ax.xaxis.tick_top()
 
-        ax.set_xticklabels(stock_symbols, minor=False)
-        ax.set_yticklabels(stock_symbols, minor=False)
+        ax.set_xticklabels(double_cols, minor=False)
+        ax.set_yticklabels(double_cols, minor=False)
         plt.savefig("stock_corr_plots.png")
 
         # Uploading this figure up to GCP bucket
