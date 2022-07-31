@@ -2,15 +2,13 @@ from data_schema import Original_Schema
 from upload_to_gcp import Upload_To_GCP
 
 from pyspark.sql import SparkSession, functions as F
-from pyspark.sql.functions import isnan, when, count, col, date_format, year, month, dayofmonth, lag,\
-round, regexp_replace, max, min, avg, stddev
-from pyspark.sql.window import Window
+from pyspark.sql.functions import when, col, max, min, avg, stddev, first
+from pyspark.ml.stat import Correlation
+from pyspark.ml.feature import VectorAssembler
 
-from datetime import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from matplotlib import ticker
 import re
 
 class EDA_Plots:
@@ -166,3 +164,163 @@ class EDA_Plots:
         self.gcp_functions.upload_filename(bucket_name="stock-sp500", 
                                            file_name= "day_of_week_stock_counts.png", 
                                            destination_blob_name="EDA_Plots/day_of_week_stock_counts.png")
+
+    def most_valuable_gcis(self):
+        # Most valuable by GCIS
+        best_sector = self.stock_df_clean.groupBy('GICS Sector')\
+            .agg(F.round(avg('Close'), 2).alias('Close_avg'),\
+                F.round(F.percentile_approx("Close", 0.5), 2).alias("Close_med"),\
+                    F.round(stddev('Close'), 2).alias('Close_stddev'))
+       
+        # Stock Close Prices by GCIS sector to Pandas dataframe to plot in matplotlib
+        best_sector_df = best_sector.toPandas()
+        best_sector_df.sort_values(by = "Close_avg", inplace = True, ascending = False)
+        best_sector_df.reset_index(inplace = True, drop = True)
+        best_sector_df["Close_med"] = best_sector_df["Close_med"].astype(float).round(2)
+        best_sector_df["Close_avg"] = best_sector_df["Close_avg"].astype(float).round(2)
+
+        # Creating 
+        fig, ((ax1), (ax2)) = plt.subplots(2,1,figsize=(12,12))
+        best_sect_plot1 = best_sector_df[["GICS Sector", "Close_avg", "Close_med"]].plot.bar(x='GICS Sector', ax=ax1)
+        for p in best_sect_plot1.patches:
+            best_sect_plot1.annotate(format(p.get_height()),
+                        (p.get_x() + p.get_width() / 2., p.get_height()),
+                        ha='center', va='center',
+                        xytext=(0, 9),
+                        textcoords='offset points')    
+        ax1.set_title('Close Price by GICS Sector')
+        ax1.set_xlabel('')
+        ax1.set_ylabel('Close Price')    
+        ax1.legend(['Close Average', 'Close Median']) 
+            
+        best_sect_plot2 = best_sector_df[["GICS Sector", "Close_stddev"]].plot.bar(x='GICS Sector', ax=ax2)   
+        for p in best_sect_plot2.patches:
+            best_sect_plot2.annotate(format(p.get_height()),
+                        (p.get_x() + p.get_width() / 2., p.get_height()),
+                        ha='center', va='center',
+                        xytext=(0, 9),
+                        textcoords='offset points')  
+        ax2.set_title('Standard Deviation by GICS Sector')
+        ax2.set_xlabel('')
+        ax2.set_ylabel('Close Price')
+        ax2.legend().set_visible(False)
+            
+        plt.tight_layout()
+        plt.savefig("gcis_close.png")
+
+        # Uploading this figure up to GCP bucket
+        self.gcp_functions.upload_filename(bucket_name="stock-sp500", 
+                                           file_name= "gcis_close.png", 
+                                           destination_blob_name="EDA_Plots/gcis_close.png")
+
+
+    def daily_returns_by_sector(self):
+        # Daily Returns by Sector
+        dr_by_sector = self.stock_df_clean.groupBy('GICS Sector')\
+            .agg(F.round(avg('daily_return'), 2).alias('dr_avg'),\
+                F.round(F.percentile_approx("daily_return", 0.5), 2).alias("dr_med"),\
+                    F.round(stddev('daily_return'), 2).alias('dr_stddev'))
+
+        avg_by_symbol = self.stock_df_clean.groupBy('Symbol')\
+            .agg(F.round(avg('Open'), 2).alias('open_avg'),\
+                F.round(avg('High'), 2).alias('high_avg'),\
+                    F.round(avg('Low'), 2).alias('low_avg'),\
+                        F.round(avg('Close'), 2).alias('close_avg'),\
+                            F.round(avg('Adj Close'), 2).alias('adj_close_avg'),\
+                                F.round(avg('Volume'), 2).alias('volume_avg'),\
+                                    F.round(avg('daily_return'), 2).alias('dr_avg'),\
+                                        F.round(avg('cum_return'), 2).alias('cum_avg'))
+
+        med_by_symbol = self.stock_df_clean.groupBy('Symbol')\
+            .agg(F.round(F.percentile_approx("Open", 0.5), 2).alias("open_med"),\
+                F.round(F.percentile_approx("High", 0.5), 2).alias("high_med"),\
+                    F.round(F.percentile_approx("Low", 0.5), 2).alias("low_med"),\
+                        F.round(F.percentile_approx("Close", 0.5), 2).alias("close_med"),\
+                            F.round(F.percentile_approx("Adj Close", 0.5), 2).alias("adj_close_med"),\
+                                F.round(F.percentile_approx("Volume", 0.5), 2).alias("volume_med"),\
+                                    F.round(F.percentile_approx("daily_return", 0.5), 2).alias("dr_med"),\
+                                        F.round(F.percentile_approx("cum_return", 0.5), 2).alias("cum_med"))
+
+
+    def stock_symbol_correlation_plot(self):
+        counts_by_symbol = self.stock_df_clean.groupBy("Symbol").count().sort(col("count").desc())
+        max_count = int(np.array(counts_by_symbol.select([max("count")]).collect()).reshape(-1)[0])
+
+        remove_symbols2 = counts_by_symbol.filter(counts_by_symbol['count'] < max_count)
+        remove_symbols2_arr = np.array(remove_symbols2.select('Symbol').collect()).reshape(-1)
+
+        corr_stock_df = self.stock_df_clean.select("*")
+
+        for value in remove_symbols2_arr:
+            cond = (F.col('Symbol') == value)
+            corr_stock_df = corr_stock_df.filter(~cond)
+
+        stock_symbol_corr = corr_stock_df.groupBy("Date").pivot("Symbol").agg(avg("Close"))
+        stock_symbol_corr = stock_symbol_corr.orderBy('Date', ascending=True)
+
+        # stock_symbols = stock_symbol_corr.columns
+
+        # This is the change
+        stock_symbol_corr = stock_symbol_corr.drop("Date")
+        
+        # stock_symbols.remove('Date')
+
+        stock_symbol_corr = stock_symbol_corr.dropna(how = 'any')
+
+        stock_symbol_corr.show(2)
+
+
+
+
+
+
+        # # convert to vector column first
+        # vector_col = "corr_features"
+        # assembler = VectorAssembler(inputCols=stock_symbols, outputCol=vector_col)
+        # df_vector = assembler.transform(stock_symbol_corr).select(vector_col)
+
+        # # get correlation matrix
+        # matrix = Correlation.corr(df_vector, vector_col,"pearson")
+        # corr_vals = matrix.collect()[0][0]
+        # corr_array = corr_vals.toArray()
+
+
+        vector_col = "corr_features"
+        assembler = VectorAssembler(inputCols = stock_symbol_corr.columns, 
+                                    outputCol = vector_col)
+        df_vector = assembler.transform(stock_symbol_corr).select(vector_col)
+
+        matrix = Correlation.corr(df_vector, vector_col).collect()[0][0]
+        corrmatrix = matrix.toArray().tolist()
+        print(corrmatrix)
+
+        # convert to vector column first
+        # vector_col = "corr_features"
+        # assembler = VectorAssembler(inputCols=stock_symbols, outputCol=vector_col)
+        # df_vector = assembler.transform(stock_symbol_corr).select(vector_col)
+
+        # matrix = Correlation.corr(df_vector, vector_col)
+        # cor_np = matrix.collect()[0][matrix.columns[0]].toArray()
+        
+
+
+
+        fig, ax = plt.subplots(figsize=(15,15))
+        heatmap = ax.pcolor(rows, cmap=plt.cm.Blues)
+
+        # put the major ticks at the middle of each cell
+        ax.set_xticks(np.arange(rows.shape[0])+0.5, minor=False)
+        ax.set_yticks(np.arange(rows.shape[1])+0.5, minor=False)
+
+        # want a more natural, table-like display
+        ax.invert_yaxis()
+        ax.xaxis.tick_top()
+
+        ax.set_xticklabels(stock_symbols, minor=False)
+        ax.set_yticklabels(stock_symbols, minor=False)
+        plt.savefig("stock_corr_plots.png")
+
+        # Uploading this figure up to GCP bucket
+        self.gcp_functions.upload_filename(bucket_name="stock-sp500", 
+                                           file_name= "stock_corr_plots.png", 
+                                           destination_blob_name="EDA_Plots/stock_corr_plots.png")
