@@ -11,6 +11,7 @@ from pyspark.sql.types import DoubleType
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from datetime import datetime
 import re
 
 class EDA_Plots:
@@ -244,20 +245,22 @@ class EDA_Plots:
                                         F.round(F.percentile_approx("cum_return", 0.5), 2).alias("cum_med"))
 
 
-    def stock_symbol_correlation_plot(self):
+    def stock_daily_returns_correlation_plot(self):
+        self.plots_log_string = ""
+
         counts_by_symbol = self.stock_df_clean.groupBy("Symbol").count().sort(col("count").desc())
         max_count = int(counts_by_symbol.select([max("count")]).toPandas().iloc(0)[0][0])
 
         remove_symbols2 = counts_by_symbol.filter(counts_by_symbol['count'] < max_count)
         remove_symbols2_arr = remove_symbols2.select('Symbol').toPandas()['Symbol'].tolist()
 
-        corr_stock_df = self.stock_df_clean.select('Date', 'Symbol', 'Close')
+        corr_stock_df = self.stock_df_clean.select('Date', 'Symbol', 'daily_return')
 
         for value in remove_symbols2_arr:
             cond = (F.col('Symbol') == value)
             corr_stock_df = corr_stock_df.filter(~cond)
 
-        stock_symbol_corr = corr_stock_df.groupBy("Date").pivot("Symbol").agg(F.round(avg("Close"), 2))
+        stock_symbol_corr = corr_stock_df.groupBy("Date").pivot("Symbol").agg(F.round(avg("daily_return"), 4))
         stock_symbol_corr = stock_symbol_corr.orderBy('Date', ascending=True)
         stock_symbol_corr = stock_symbol_corr.drop('Date')
 
@@ -268,11 +271,12 @@ class EDA_Plots:
         pandas_pivot_cols = pandas_cor_stocks.columns.tolist()
         cor_stocks_values_arrays = pandas_cor_stocks.values
 
-
+        self.plots_log_string += f"{datetime.now()}: \nThe 30 lowest correlated stocks are:\n{pandas_cor_stocks.unstack().sort_values().drop_duplicates().head(30)}\n"
+        self.plots_log_string += f"\n{datetime.now()}: \nThe 30 highest correlated stocks are:\n{pandas_cor_stocks.unstack().sort_values().drop_duplicates().tail(30)}\n"
 
         # Uncomment below to plot this, just chnage the name from rows to corrmatrix
-        fig, ax = plt.subplots(figsize=(25,25))
-        heatmap = ax.pcolor(cor_stocks_values_arrays, cmap=plt.cm.RdYlGn)
+        fig, ax = plt.subplots(figsize=(55,55))
+        heatmap = ax.pcolor(cor_stocks_values_arrays, cmap=plt.cm.RdYlGn, vmin=-1, vmax=1)
 
         # put the major ticks at the middle of each cell
         ax.set_xticks(np.arange(cor_stocks_values_arrays.shape[0])+0.5, minor=False)
@@ -284,9 +288,60 @@ class EDA_Plots:
 
         ax.set_xticklabels(pandas_pivot_cols, minor=False)
         ax.set_yticklabels(pandas_pivot_cols, minor=False)
+        plt.xticks(fontsize=6, rotation=90)
+        plt.yticks(fontsize=6)
         plt.savefig("stock_corr_plots.png")
 
         # Uploading this figure up to GCP bucket
         self.gcp_functions.upload_filename(bucket_name="stock-sp500", 
                                            file_name= "stock_corr_plots.png", 
-                                           destination_blob_name="EDA_Plots/stock_corr_plots.png")
+                                           destination_blob_name="EDA_Plots/daily_returns_stock_corr_plots.png")
+
+        pandas_cor_stocks.to_csv('gs://stock-sp500/Data/Daily_Returns_Correlation_Data.csv', header=True, index=True)
+
+
+    def industry_daily_returns_correlation_plot(self):
+        corr_sector_df = self.stock_df_clean.select('Date', 'GICS Sector', 'daily_return')
+
+        stock_symbol_corr = corr_sector_df.groupBy("Date").pivot("GICS Sector").agg(F.round(avg("daily_return"), 4))
+        stock_symbol_corr = stock_symbol_corr.orderBy('Date', ascending=True)
+        stock_symbol_corr = stock_symbol_corr.drop('Date')
+
+        pandas_pivot_df = stock_symbol_corr.toPandas()
+        pandas_pivot_df.dropna(inplace=True)
+
+        pandas_cor_stocks = pandas_pivot_df.corr()
+        pandas_pivot_cols = pandas_cor_stocks.columns.tolist()
+        cor_stocks_values_arrays = pandas_cor_stocks.values
+
+        self.plots_log_string += f"{datetime.now()}: \nThe Correlation Values by Industry Sector are:\n{pandas_cor_stocks.unstack().sort_values().drop_duplicates()}\n"
+
+
+
+        # Uncomment below to plot this, just chnage the name from rows to corrmatrix
+        fig, ax = plt.subplots(figsize=(15,15))
+        heatmap = ax.pcolor(cor_stocks_values_arrays, cmap=plt.cm.RdYlGn, vmin=-1, vmax=1)
+
+        # put the major ticks at the middle of each cell
+        ax.set_xticks(np.arange(cor_stocks_values_arrays.shape[0])+0.5, minor=False)
+        ax.set_yticks(np.arange(cor_stocks_values_arrays.shape[1])+0.5, minor=False)
+
+        # want a more natural, table-like display
+        ax.invert_yaxis()
+        ax.xaxis.tick_top()
+
+        ax.set_xticklabels(pandas_pivot_cols, minor=False)
+        ax.set_yticklabels(pandas_pivot_cols, minor=False)
+        plt.xticks(fontsize=6, rotation=90)
+        plt.yticks(fontsize=6)
+        plt.savefig("stock_corr_plots.png")
+
+        # Uploading this figure up to GCP bucket
+        self.gcp_functions.upload_filename(bucket_name="stock-sp500", 
+                                           file_name= "stock_corr_plots.png", 
+                                           destination_blob_name="EDA_Plots/daily_returns_stock_corr_plots.png")
+
+        pandas_cor_stocks.to_csv('gs://stock-sp500/Data/Daily_Returns_Correlation_Data.csv', header=True, index=True)
+
+        # N. Uploading compiled strings into GCP bucket as a text file called eda_test.txt
+        self.gcp_functions.upload_string_message(bucket_name="stock-sp500", contents=self.plots_log_string, destination_blob_name="Logs/stock_plots.txt")
