@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Will uncomment when running process end to end
-# sh ./script.sh
+# sh ./create_data.sh
 
 function parse_yaml {
    local prefix=$2
@@ -39,17 +39,17 @@ done
 gsutil -m cp "/Users/CarlosMonsivais/Desktop/PySpark-SP500-Portfolio-Optimization/main.py" $PYTHON_FILES_BUCKET/
 
 
-# # Creating and DataProc cluster on Compute Engine in GCP
-# gcloud dataproc clusters create stock-cluster \
-# --enable-component-gateway \
-# --region us-central1 \
-# --zone us-central1-a \
-# --master-machine-type n1-standard-4 --master-boot-disk-size 500 \
-# --num-workers 2 \
-# --worker-machine-type n1-standard-4 --worker-boot-disk-size 500 \
-# --image-version 2.0-debian10 \
-# --optional-components JUPYTER --scopes 'https://www.googleapis.com/auth/cloud-platform' \
-# --project airy-digit-356101
+# Creating and DataProc cluster on Compute Engine in GCP
+gcloud dataproc clusters create stock-cluster \
+--enable-component-gateway \
+--region us-central1 \
+--zone us-central1-a \
+--master-machine-type n1-standard-4 --master-boot-disk-size 500 \
+--num-workers 2 \
+--worker-machine-type n1-standard-4 --worker-boot-disk-size 500 \
+--image-version 2.0-debian10 \
+--optional-components JUPYTER --scopes 'https://www.googleapis.com/auth/cloud-platform' \
+--project airy-digit-356101
 
 
 # Executing PySpark Files that were uploaded above
