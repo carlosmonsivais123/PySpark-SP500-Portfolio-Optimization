@@ -246,50 +246,44 @@ class EDA_Plots:
 
     def stock_symbol_correlation_plot(self):
         counts_by_symbol = self.stock_df_clean.groupBy("Symbol").count().sort(col("count").desc())
-        max_count = int(np.array(counts_by_symbol.select([max("count")]).collect()).reshape(-1)[0])
+        max_count = int(counts_by_symbol.select([max("count")]).toPandas().iloc(0)[0][0])
 
         remove_symbols2 = counts_by_symbol.filter(counts_by_symbol['count'] < max_count)
-        remove_symbols2_arr = np.array(remove_symbols2.select('Symbol').collect()).reshape(-1)
+        remove_symbols2_arr = remove_symbols2.select('Symbol').toPandas()['Symbol'].tolist()
 
-        corr_stock_df = self.stock_df_clean.select("*")
+        corr_stock_df = self.stock_df_clean.select('Date', 'Symbol', 'Close')
 
         for value in remove_symbols2_arr:
             cond = (F.col('Symbol') == value)
             corr_stock_df = corr_stock_df.filter(~cond)
 
-        stock_symbol_corr = corr_stock_df.groupBy("Date").pivot("Symbol").agg(avg("Close"))
+        stock_symbol_corr = corr_stock_df.groupBy("Date").pivot("Symbol").agg(F.round(avg("Close"), 2))
         stock_symbol_corr = stock_symbol_corr.orderBy('Date', ascending=True)
-        
+        stock_symbol_corr = stock_symbol_corr.drop('Date')
 
-        double_cols = [f.name for f in stock_symbol_corr.schema.fields if isinstance(f.dataType, DoubleType)]
-        integer_df = stock_symbol_corr[[double_cols]]
-        integer_df_drop_na = integer_df.na.drop("any")
+        pandas_pivot_df = stock_symbol_corr.toPandas()
+        pandas_pivot_df.dropna(inplace=True)
 
-        vector_col = "corr_features"
-        assembler = VectorAssembler(inputCols = integer_df_drop_na.columns, 
-                                    outputCol = vector_col)
-        df_vector = assembler.transform(integer_df_drop_na).select(vector_col)
-
-        matrix = Correlation.corr(df_vector, vector_col).collect()[0][0]
-        # corrmatrix = matrix.toArray().tolist()
-        corrmatrix = matrix.toArray()
+        pandas_cor_stocks = pandas_pivot_df.corr()
+        pandas_pivot_cols = pandas_cor_stocks.columns.tolist()
+        cor_stocks_values_arrays = pandas_cor_stocks.values
 
 
 
         # Uncomment below to plot this, just chnage the name from rows to corrmatrix
-        fig, ax = plt.subplots(figsize=(15,15))
-        heatmap = ax.pcolor(corrmatrix, cmap=plt.cm.Blues)
+        fig, ax = plt.subplots(figsize=(25,25))
+        heatmap = ax.pcolor(cor_stocks_values_arrays, cmap=plt.cm.RdYlGn)
 
         # put the major ticks at the middle of each cell
-        ax.set_xticks(np.arange(corrmatrix.shape[0])+0.5, minor=False)
-        ax.set_yticks(np.arange(corrmatrix.shape[1])+0.5, minor=False)
+        ax.set_xticks(np.arange(cor_stocks_values_arrays.shape[0])+0.5, minor=False)
+        ax.set_yticks(np.arange(cor_stocks_values_arrays.shape[1])+0.5, minor=False)
 
         # want a more natural, table-like display
         ax.invert_yaxis()
         ax.xaxis.tick_top()
 
-        ax.set_xticklabels(double_cols, minor=False)
-        ax.set_yticklabels(double_cols, minor=False)
+        ax.set_xticklabels(pandas_pivot_cols, minor=False)
+        ax.set_yticklabels(pandas_pivot_cols, minor=False)
         plt.savefig("stock_corr_plots.png")
 
         # Uploading this figure up to GCP bucket
