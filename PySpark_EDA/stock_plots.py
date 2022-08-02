@@ -290,14 +290,14 @@ class EDA_Plots:
         ax.set_yticklabels(pandas_pivot_cols, minor=False)
         plt.xticks(fontsize=6, rotation=90)
         plt.yticks(fontsize=6)
-        plt.savefig("stock_corr_plots.png")
+        plt.savefig("dr_symbol_corr_plots.png")
 
         # Uploading this figure up to GCP bucket
         self.gcp_functions.upload_filename(bucket_name="stock-sp500", 
-                                           file_name= "stock_corr_plots.png", 
-                                           destination_blob_name="EDA_Plots/daily_returns_stock_corr_plots.png")
+                                           file_name= "dr_symbol_corr_plots.png", 
+                                           destination_blob_name="EDA_Plots/dr_symbol_corr_plots.png")
 
-        pandas_cor_stocks.to_csv('gs://stock-sp500/Data/Daily_Returns_Correlation_Data.csv', header=True, index=True)
+        pandas_cor_stocks.to_csv('gs://stock-sp500/Data/Daily_Returns_Symbol_Correlation_Data.csv', header=True, index=True)
 
 
     def industry_daily_returns_correlation_plot(self):
@@ -314,9 +314,7 @@ class EDA_Plots:
         pandas_pivot_cols = pandas_cor_stocks.columns.tolist()
         cor_stocks_values_arrays = pandas_cor_stocks.values
 
-        self.plots_log_string += f"{datetime.now()}: \nThe Correlation Values by Industry Sector are:\n{pandas_cor_stocks.unstack().sort_values().drop_duplicates()}\n"
-
-
+        self.plots_log_string += f"\n{datetime.now()}: \nThe Correlation Values by Industry Sector are:\n{pandas_cor_stocks.unstack().sort_values().drop_duplicates()}\n"
 
         # Uncomment below to plot this, just chnage the name from rows to corrmatrix
         fig, ax = plt.subplots(figsize=(15,15))
@@ -332,16 +330,16 @@ class EDA_Plots:
 
         ax.set_xticklabels(pandas_pivot_cols, minor=False)
         ax.set_yticklabels(pandas_pivot_cols, minor=False)
-        plt.xticks(fontsize=6, rotation=90)
-        plt.yticks(fontsize=6)
-        plt.savefig("stock_corr_plots.png")
+        plt.xticks(fontsize=12, rotation=90)
+        plt.yticks(fontsize=12)
+        plt.savefig("dr_sector_corr_plots.png")
 
         # Uploading this figure up to GCP bucket
         self.gcp_functions.upload_filename(bucket_name="stock-sp500", 
-                                           file_name= "stock_corr_plots.png", 
-                                           destination_blob_name="EDA_Plots/daily_returns_stock_corr_plots.png")
+                                           file_name= "dr_sector_corr_plots.png", 
+                                           destination_blob_name="EDA_Plots/dr_sector_corr_plots.png")
 
-        pandas_cor_stocks.to_csv('gs://stock-sp500/Data/Daily_Returns_Correlation_Data.csv', header=True, index=True)
+        pandas_cor_stocks.to_csv('gs://stock-sp500/Data/Daily_Returns_Sector_Correlation_Data.csv', header=True, index=True)
 
         # N. Uploading compiled strings into GCP bucket as a text file called eda_test.txt
         self.gcp_functions.upload_string_message(bucket_name="stock-sp500", contents=self.plots_log_string, destination_blob_name="Logs/stock_plots.txt")
