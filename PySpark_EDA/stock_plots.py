@@ -297,7 +297,7 @@ class EDA_Plots:
                                            file_name= "dr_symbol_corr_plots.png", 
                                            destination_blob_name="EDA_Plots/dr_symbol_corr_plots.png")
 
-        pandas_cor_stocks.to_csv('gs://stock-sp500/Data/Daily_Returns_Symbol_Correlation_Data.csv', header=True, index=True)
+        pandas_cor_stocks.to_csv('gs://stock-sp500/Data/Correlation_Data/Daily_Returns_Symbol_Correlation_Data.csv', header=True, index=True)
 
 
     def industry_daily_returns_correlation_plot(self):
@@ -339,7 +339,7 @@ class EDA_Plots:
                                            file_name= "dr_sector_corr_plots.png", 
                                            destination_blob_name="EDA_Plots/dr_sector_corr_plots.png")
 
-        pandas_cor_stocks.to_csv('gs://stock-sp500/Data/Daily_Returns_Sector_Correlation_Data.csv', header=True, index=True)
+        pandas_cor_stocks.to_csv('gs://stock-sp500/Data/Correlation_Data/Daily_Returns_Sector_Correlation_Data.csv', header=True, index=True)
 
         # N. Uploading compiled strings into GCP bucket as a text file called eda_test.txt
         self.gcp_functions.upload_string_message(bucket_name="stock-sp500", contents=self.plots_log_string, destination_blob_name="Logs/stock_plots.txt")
