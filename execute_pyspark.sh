@@ -1,8 +1,4 @@
 #!/bin/bash
-
-# Will uncomment when running process end to end
-# sh ./create_data.sh
-
 function parse_yaml {
    local prefix=$2
    local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
@@ -27,6 +23,7 @@ gcloud auth activate-service-account $SERVICE_ACCOUNT --key-file=$JSON_KEY_FILE 
 
 # Uploading Folders and file to GCP Bucket
 Upload_Folders=(
+  PySpark_Retrieve_Data
   GCP_Functions
   PySpark_Data
   PySpark_EDA
@@ -57,7 +54,8 @@ gcloud dataproc jobs submit pyspark 'gs://stock-sp500/Spark_Files/main.py' \
 --project=$PROJECT_ID \
 --cluster='stock-cluster' \
 --region='us-central1' \
---py-files='gs://stock-sp500/Spark_Files/GCP_Functions/upload_to_gcp.py',\
+--py-files='gs://stock-sp500/Spark_Files/PySpark_Retrieve_Data/retrieve_data.py',\
+'gs://stock-sp500/Spark_Files/GCP_Functions/upload_to_gcp.py',\
 'gs://stock-sp500/Spark_Files/PySpark_Data/data_cleaning.py',\
 'gs://stock-sp500/Spark_Files/PySpark_Data/data_schema.py',\
 'gs://stock-sp500/Spark_Files/PySpark_EDA/stock_plots.py'

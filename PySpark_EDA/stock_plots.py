@@ -225,18 +225,16 @@ class EDA_Plots:
                 F.round(avg('High'), 2).alias('high_avg'),\
                     F.round(avg('Low'), 2).alias('low_avg'),\
                         F.round(avg('Close'), 2).alias('close_avg'),\
-                            F.round(avg('Adj Close'), 2).alias('adj_close_avg'),\
-                                F.round(avg('Volume'), 2).alias('volume_avg'),\
-                                    F.round(avg('daily_return'), 2).alias('dr_avg'),\
-                                        F.round(avg('cum_return'), 2).alias('cum_avg'))
+                            F.round(avg('Volume'), 2).alias('volume_avg'),\
+                                F.round(avg('daily_return'), 2).alias('dr_avg'),\
+                                    F.round(avg('cum_return'), 2).alias('cum_avg'))
 
         med_by_symbol = self.stock_df_clean.groupBy('Symbol')\
             .agg(F.round(F.percentile_approx("Open", 0.5), 2).alias("open_med"),\
                 F.round(F.percentile_approx("High", 0.5), 2).alias("high_med"),\
                     F.round(F.percentile_approx("Low", 0.5), 2).alias("low_med"),\
                         F.round(F.percentile_approx("Close", 0.5), 2).alias("close_med"),\
-                            F.round(F.percentile_approx("Adj Close", 0.5), 2).alias("adj_close_med"),\
-                                F.round(F.percentile_approx("Volume", 0.5), 2).alias("volume_med"),\
+                            F.round(F.percentile_approx("Volume", 0.5), 2).alias("volume_med"),\
                                     F.round(F.percentile_approx("daily_return", 0.5), 2).alias("dr_med"),\
                                         F.round(F.percentile_approx("cum_return", 0.5), 2).alias("cum_med"))
 

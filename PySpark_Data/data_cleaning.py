@@ -30,8 +30,8 @@ class Data_Cleaning_Stock:
         return self.stock_df
 
     def null_value_analysis(self):
-        # Only looking at ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume'] columns because the schema defined the other columns as not nullable.
-        null_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
+        # Only looking at ['Open', 'High', 'Low', 'Close', 'Volume'] columns because the schema defined the other columns as not nullable.
+        null_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
         eda_log_string = ""
 
 
@@ -51,7 +51,7 @@ class Data_Cleaning_Stock:
         # 3. Counting the number of missing values
         stock_df_missing_values = self.stock_df.filter(col("Open").isNull()|col("High").isNull()\
                                                  |col("Low").isNull()|col("Close").isNull()\
-                                                 |col("Adj Close").isNull()|col("Volume").isNull())
+                                                 |col("Volume").isNull())
         num_misssing_rows = "There are {} rows with missing values.".format(stock_df_missing_values.count())
         eda_log_string += f"{datetime.now()}: \n{num_misssing_rows}\n"
 
@@ -68,7 +68,7 @@ class Data_Cleaning_Stock:
 
         for _, ax in zip(missing_stock_symbols, axes.flatten()):
             pandas_missing_values_t = pandas_missing_values[pandas_missing_values['Symbol'] == _]
-            pandas_missing_values_t = pandas_missing_values_t[['Date', 'Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']]
+            pandas_missing_values_t = pandas_missing_values_t[['Date', 'Open', 'High', 'Low', 'Close', 'Volume']]
             pandas_missing_values_t.set_index("Date", inplace = True, drop = True)
             pandas_missing_values_t = pandas_missing_values_t.T
             np_missing_values_array = pandas_missing_values_t.values
@@ -84,7 +84,7 @@ class Data_Cleaning_Stock:
             ax.set_xlabel('Date Index', fontsize=20, weight='bold')
             
             positions = [0, 1, 2, 3, 4, 5]
-            labels = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
+            labels = ['Open', 'High', 'Low', 'Close', 'Volume']
             ax.yaxis.set_major_locator(ticker.FixedLocator(positions))
             ax.yaxis.set_major_formatter(ticker.FixedFormatter(labels))
             ax.yaxis.set_tick_params(labelsize=20)
@@ -94,7 +94,7 @@ class Data_Cleaning_Stock:
             h, w = np_missing_values_array.shape
             ax.set_aspect(w/h)
             
-        fig.delaxes(axes[n_rows - 1, -1])
+        # fig.delaxes(axes[n_rows - 1, -1])
         plt.tight_layout()
         fig.savefig("null_heatmap.png")
 
@@ -138,7 +138,7 @@ Now we don't have any missing values in the main data columns we will be using.\
 
 
         # 7. Clean dataframe with new feautures
-        stock_df_new_null_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume', 'day_of_week',
+        stock_df_new_null_columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'day_of_week',
         'year', 'month', 'day_of_month', 'lag_1', 'lag_2', 'lag_3', 'lag_4', 'lag_5', 'lag_6', 'daily_return', 'cumulative_return']
         missing_values_2 = self.stock_df_new.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in stock_df_new_null_columns])
         eda_log_string += f'''\n{datetime.now()}: \n{missing_values_2._jdf.showString(20, 0, False)}\
