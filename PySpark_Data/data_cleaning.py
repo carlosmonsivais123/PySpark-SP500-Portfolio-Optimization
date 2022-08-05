@@ -119,17 +119,17 @@ Now we don't have any missing values in the main data columns we will be using.\
                 .withColumn("month", month(col("Date")))\
                     .withColumn("day_of_month", dayofmonth(col("Date")))
 
-        # Lag Features: lag_1, lag_2, lag_3, lag_4, lag_5, lag_6
-        windowSpec = Window.partitionBy("Symbol").orderBy("Symbol")
-        self.stock_df_new = self.stock_df_new.withColumn("lag_1", lag("Close",1).over(windowSpec))\
-            .withColumn("lag_2", lag("Close",2).over(windowSpec))\
-                .withColumn("lag_3", lag("Close",3).over(windowSpec))\
-                    .withColumn("lag_4", lag("Close",4).over(windowSpec))\
-                        .withColumn("lag_5", lag("Close",5).over(windowSpec))\
-                            .withColumn("lag_6", lag("Close",6).over(windowSpec))
-
         # Daily Return Feature: daily_return
         self.stock_df_new = self.stock_df_new.withColumn('daily_return', (self.stock_df_new['Close'] - self.stock_df_new['Open']))
+
+        # Lag Features: lag_1, lag_2, lag_3, lag_4, lag_5, lag_6
+        windowSpec = Window.partitionBy("Symbol").orderBy("Symbol")
+        self.stock_df_new = self.stock_df_new.withColumn("lag_1", lag("daily_return",1).over(windowSpec))\
+            .withColumn("lag_2", lag("daily_return",2).over(windowSpec))\
+                .withColumn("lag_3", lag("daily_return",3).over(windowSpec))\
+                    .withColumn("lag_4", lag("daily_return",4).over(windowSpec))\
+                        .withColumn("lag_5", lag("daily_return",5).over(windowSpec))\
+                            .withColumn("lag_6", lag("daily_return",6).over(windowSpec))
 
         # Cummulative Return Feature:
         cummulative_window = (Window.partitionBy('Symbol').orderBy('Date').rangeBetween(Window.unboundedPreceding, 0))

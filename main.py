@@ -4,9 +4,9 @@ from stock_plots import EDA_Plots
 from k_means import K_Means_Stocks_Clustering
 
 # Retrieving Data: retrieve_data.py
-get_stock_data = Get_Stock_Data() # Class name Get_Stock_Data()
-get_stock_data.sp_500_ticks() # Extracting S&P 500 ticker symbols
-get_stock_data.yahoo_scrape() # Extracting all S&P 500 data
+# get_stock_data = Get_Stock_Data() # Class name Get_Stock_Data()
+# get_stock_data.sp_500_ticks() # Extracting S&P 500 ticker symbols
+# get_stock_data.yahoo_scrape() # Extracting all S&P 500 data
 
 # Data Cleaning: data_cleaning.py
 data_cleaning_stock = Data_Cleaning_Stock()
