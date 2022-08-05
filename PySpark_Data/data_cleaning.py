@@ -94,12 +94,11 @@ class Data_Cleaning_Stock:
             h, w = np_missing_values_array.shape
             ax.set_aspect(w/h)
             
-        # fig.delaxes(axes[n_rows - 1, -1])
         plt.tight_layout()
         fig.savefig("null_heatmap.png")
 
         # Uploading this heatmap figure up to GCP bucket
-        self.gcp_functions.upload_filename(bucket_name="stock-sp500", file_name= "null_heatmap.png", destination_blob_name="Logs/null_heatmap.png")
+        self.gcp_functions.upload_filename(bucket_name="stock-sp500", file_name= "null_heatmap.png", destination_blob_name="Data_Cleaning/null_heatmap.png")
 
 
         # 5. Removing Symbols with null values.
@@ -165,4 +164,4 @@ Clean data uploaded to GCP SUCCESFULLY.'''
 
 
         # 9. Uploading compiled strings into GCP bucket as a text file called eda_test.txt
-        self.gcp_functions.upload_string_message(bucket_name="stock-sp500", contents=eda_log_string, destination_blob_name="Logs/eda_test.txt")
+        self.gcp_functions.upload_string_message(bucket_name="stock-sp500", contents=eda_log_string, destination_blob_name="Data_Cleaning/data_cleaning_log.txt")

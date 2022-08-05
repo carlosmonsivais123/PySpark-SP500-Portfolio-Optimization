@@ -27,6 +27,7 @@ Upload_Folders=(
   GCP_Functions
   PySpark_Data
   PySpark_EDA
+  PySpark_Clustering
 )
 
 for folder in "${Upload_Folders[@]}";do
@@ -54,8 +55,10 @@ gcloud dataproc jobs submit pyspark 'gs://stock-sp500/Spark_Files/main.py' \
 --project=$PROJECT_ID \
 --cluster='stock-cluster' \
 --region='us-central1' \
---py-files='gs://stock-sp500/Spark_Files/PySpark_Retrieve_Data/retrieve_data.py',\
+--py-files=\
+'gs://stock-sp500/Spark_Files/PySpark_Retrieve_Data/retrieve_data.py',\
 'gs://stock-sp500/Spark_Files/GCP_Functions/upload_to_gcp.py',\
 'gs://stock-sp500/Spark_Files/PySpark_Data/data_cleaning.py',\
 'gs://stock-sp500/Spark_Files/PySpark_Data/data_schema.py',\
-'gs://stock-sp500/Spark_Files/PySpark_EDA/stock_plots.py'
+'gs://stock-sp500/Spark_Files/PySpark_EDA/stock_plots.py',\
+'gs://stock-sp500/Spark_Files/PySpark_Clustering/k_means.py'

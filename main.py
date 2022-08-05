@@ -1,6 +1,7 @@
 from retrieve_data import Get_Stock_Data
 from data_cleaning import Data_Cleaning_Stock
 from stock_plots import EDA_Plots
+from k_means import K_Means_Stocks_Clustering
 
 # Retrieving Data: retrieve_data.py
 get_stock_data = Get_Stock_Data() # Class name Get_Stock_Data()
@@ -21,4 +22,10 @@ eda_plots.most_valuable_gcis()
 eda_plots.stock_daily_returns_correlation_plot()
 eda_plots.industry_daily_returns_correlation_plot()
 
-# Clustering: 
+# Clustering: k_means.py
+k_means_clustering = K_Means_Stocks_Clustering()
+k_means_clustering.read_in_data_data_cleaning()
+k_means_clustering.daily_returns_avg_var_cluster()
+
+# ML Models:
+# Linear Regression

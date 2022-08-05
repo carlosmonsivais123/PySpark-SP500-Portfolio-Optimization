@@ -336,4 +336,4 @@ class EDA_Plots:
         pandas_cor_stocks.to_csv('gs://stock-sp500/Data/Correlation_Data/Daily_Returns_Sector_Correlation_Data.csv', header=True, index=True)
 
         # N. Uploading compiled strings into GCP bucket as a text file called eda_test.txt
-        self.gcp_functions.upload_string_message(bucket_name="stock-sp500", contents=self.plots_log_string, destination_blob_name="Logs/stock_plots.txt")
+        self.gcp_functions.upload_string_message(bucket_name="stock-sp500", contents=self.plots_log_string, destination_blob_name="EDA_Plots/eda_log.txt")
