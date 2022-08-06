@@ -28,10 +28,11 @@ Upload_Folders=(
   PySpark_Data
   PySpark_EDA
   PySpark_Clustering
+  PySpark_ML_Models
 )
 
 for folder in "${Upload_Folders[@]}";do
-    gsutil -m cp "$PWD/$folder/*" $PYTHON_FILES_BUCKET/$folder/
+    gsutil cp "$PWD/$folder/*" $PYTHON_FILES_BUCKET/$folder/
 done
 
 gsutil -m cp "/Users/CarlosMonsivais/Desktop/PySpark-SP500-Portfolio-Optimization/main.py" $PYTHON_FILES_BUCKET/
@@ -62,4 +63,6 @@ gcloud dataproc jobs submit pyspark 'gs://stock-sp500/Spark_Files/main.py' \
 'gs://stock-sp500/Spark_Files/PySpark_Data/data_schema.py',\
 'gs://stock-sp500/Spark_Files/PySpark_Data/read_data_source.py',\
 'gs://stock-sp500/Spark_Files/PySpark_EDA/stock_plots.py',\
-'gs://stock-sp500/Spark_Files/PySpark_Clustering/k_means.py'
+'gs://stock-sp500/Spark_Files/PySpark_Clustering/k_means.py',\
+'gs://stock-sp500/Spark_Files/PySpark_ML_Models/data_transforms.py',\
+'gs://stock-sp500/Spark_Files/PySpark_ML_Models/linear_regression_models.py'\
