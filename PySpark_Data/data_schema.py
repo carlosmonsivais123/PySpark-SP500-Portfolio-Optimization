@@ -39,6 +39,7 @@ class Original_Schema:
                                          StructField('lag_4', FloatType(), False),
                                          StructField('lag_5', FloatType(), False),
                                          StructField('lag_6', FloatType(), False),
+                                         StructField('volume_lag_1', FloatType(), False),
                                          StructField('daily_return', FloatType(), False),
                                          StructField( 'cumulative_return', FloatType(), False)])
 

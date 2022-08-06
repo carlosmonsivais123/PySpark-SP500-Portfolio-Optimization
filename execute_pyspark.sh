@@ -60,5 +60,6 @@ gcloud dataproc jobs submit pyspark 'gs://stock-sp500/Spark_Files/main.py' \
 'gs://stock-sp500/Spark_Files/GCP_Functions/upload_to_gcp.py',\
 'gs://stock-sp500/Spark_Files/PySpark_Data/data_cleaning.py',\
 'gs://stock-sp500/Spark_Files/PySpark_Data/data_schema.py',\
+'gs://stock-sp500/Spark_Files/PySpark_Data/read_data_source.py',\
 'gs://stock-sp500/Spark_Files/PySpark_EDA/stock_plots.py',\
 'gs://stock-sp500/Spark_Files/PySpark_Clustering/k_means.py'

@@ -1,5 +1,6 @@
-from data_schema import Original_Schema
+# from data_schema import Original_Schema
 from upload_to_gcp import Upload_To_GCP
+from read_data_source import Read_In_Data_Source
 
 from pyspark.sql import SparkSession, functions as F
 from pyspark.sql.functions import isnan, when, count, col, date_format, year, month, dayofmonth, lag, regexp_replace
@@ -13,21 +14,9 @@ from matplotlib import ticker
 class Data_Cleaning_Stock:
     def __init__(self):
         self.gcp_functions = Upload_To_GCP()
-        
+        self.read_in_data_source = Read_In_Data_Source()
+        self.stock_df= self.read_in_data_source.read_original_data()
 
-    def read_in_data_data_cleaning(self):
-        spark = SparkSession.builder.appName("stock").getOrCreate()
-        sc = spark.sparkContext
-        data_file = "gs://stock-sp500/Data/S&P_500_Full_Stock_Data.csv"
-
-        og_schema = Original_Schema()
-        stock_schema = og_schema.full_stock_data_schema()
-
-        self.stock_df = spark.read.csv(data_file,
-                            header = True,
-                            schema = stock_schema).cache()
-
-        return self.stock_df
 
     def null_value_analysis(self):
         # Only looking at ['Open', 'High', 'Low', 'Close', 'Volume'] columns because the schema defined the other columns as not nullable.
@@ -122,23 +111,31 @@ Now we don't have any missing values in the main data columns we will be using.\
         # Daily Return Feature: daily_return
         self.stock_df_new = self.stock_df_new.withColumn('daily_return', (self.stock_df_new['Close'] - self.stock_df_new['Open']))
 
-        # Lag Features: lag_1, lag_2, lag_3, lag_4, lag_5, lag_6
+        # Lag Features: volume_lag_1
+        vol_windowSpec = Window.partitionBy("Symbol").orderBy("Symbol")
+        self.stock_df_new = self.stock_df_new.withColumn("volume_lag_1", lag("Volume", 1).over(vol_windowSpec))
+
+
+        # Lag Features: dr_lag_1, dr_lag_2, dr_lag_3, dr_lag_4, dr_lag_5, dr_lag_6
         windowSpec = Window.partitionBy("Symbol").orderBy("Symbol")
         self.stock_df_new = self.stock_df_new.withColumn("lag_1", lag("daily_return",1).over(windowSpec))\
             .withColumn("lag_2", lag("daily_return",2).over(windowSpec))\
                 .withColumn("lag_3", lag("daily_return",3).over(windowSpec))\
                     .withColumn("lag_4", lag("daily_return",4).over(windowSpec))\
                         .withColumn("lag_5", lag("daily_return",5).over(windowSpec))\
-                            .withColumn("lag_6", lag("daily_return",6).over(windowSpec))
+                            .withColumn("lag_6", lag("daily_return",6).over(windowSpec))\
+                                .withColumn("volume_lag_1", lag("Volume", 1).over(windowSpec))
 
+                                
         # Cummulative Return Feature:
         cummulative_window = (Window.partitionBy('Symbol').orderBy('Date').rangeBetween(Window.unboundedPreceding, 0))
         self.stock_df_new = self.stock_df_new.withColumn('cumulative_return', F.sum('daily_return').over(cummulative_window))
 
 
+
         # 7. Clean dataframe with new feautures
-        stock_df_new_null_columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'day_of_week',
-        'year', 'month', 'day_of_month', 'lag_1', 'lag_2', 'lag_3', 'lag_4', 'lag_5', 'lag_6', 'daily_return', 'cumulative_return']
+        stock_df_new_null_columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'day_of_week', 'year', 'month', 'day_of_month', 
+        'lag_1', 'lag_2', 'lag_3', 'lag_4', 'lag_5', 'lag_6', 'volume_lag_1', 'daily_return', 'cumulative_return']
         missing_values_2 = self.stock_df_new.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in stock_df_new_null_columns])
         eda_log_string += f'''\n{datetime.now()}: \n{missing_values_2._jdf.showString(20, 0, False)}\
 Due to the lag features created, we lost 6 rows per stock symbol.\n'''
@@ -151,7 +148,6 @@ Now we don't have any missing values in the main data columns we will be uploadi
         # GICS sector clean up
         self.stock_df_new = self.stock_df_new.\
             withColumn('GICS Sector', regexp_replace('GICS Sector', 'Information technology', 'Information Technology'))
-
 
         # 8. Pushing clean stock data with features into GCP bucket
         self.stock_df_new.coalesce(1)\
