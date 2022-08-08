@@ -2,15 +2,18 @@ from upload_to_gcp import Upload_To_GCP
 from read_data_source import Read_In_Data_Source
 from data_transforms import Data_Model_Transforms
 
-from pyspark.sql import Window
-from pyspark.sql.functions import percent_rank
 
-from pyspark.ml.regression import LinearRegression
-from pyspark.ml.evaluation import RegressionEvaluator
+from pyspark.sql.types import StructType, StructField, StringType, FloatType, IntegerType
+from pyspark.sql.functions import pandas_udf, PandasUDFType
 
-import matplotlib.pyplot as plt
-from datetime import datetime
-
+import pandas as pd
+import joblib
+from google.cloud import storage
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
 
 class ML_Model:
     def __init__(self):
@@ -20,50 +23,62 @@ class ML_Model:
         self.data_model_transforms = Data_Model_Transforms()
 
 
-
-    def linear_regression_model(self):
-        self.lr_model_log_string = ""
-
-        # One stock at a time for now
-        stock = self.stock_df_clean.filter(self.stock_df_clean.Symbol == "ABMD")
-        stock = stock.withColumn("rank", percent_rank().over(Window.partitionBy().orderBy("Date")))
-
-        # Variables we want in our final datafame with predictions
-        vars_model = ['Date', 'Symbol', 'GICS Sector', 'lag_1', 'day_of_week', 'month', 'volume_lag_1', 'daily_return']
-
-        train_stock = stock.filter(stock.rank<0.80).select(vars_model)
-        test_stock = stock.filter(stock.rank >= 0.80).select(vars_model)
-
-        train_transformed_data = self.data_model_transforms.lr_model_transform(train_stock)
-
-        lr = LinearRegression(featuresCol="features", labelCol="daily_return")
-
-        ##### Training Data #####
-        # Fitting Model to Training Data
-        lr_fit = lr.fit(train_transformed_data)
-        train_preds = lr_fit.transform(train_transformed_data)
-        lrevaluator = RegressionEvaluator(predictionCol="prediction", labelCol="daily_return", metricName="rmse")
-
-        # RMSE score on training data
-        training_rmse = lrevaluator.evaluate(train_preds)
-
-
-        ##### Testing Data #####
-        # Predictions Based on Testing Data
-        test_transformed_data = self.data_model_transforms.lr_model_transform(test_stock)
-        test_preds = lr_fit.transform(test_transformed_data)
-        testing_rmse = lrevaluator.evaluate(test_preds)
-
-        ## Saving Model ##
-        lr_fit.write().overwrite().save('gs://stock-sp500/Models/LR_model')
+    def linear_regression_models(self):
+        vars_needed = self.stock_df_clean.select('Symbol', 'Date', 'lag_1', 'day_of_week', 'month', 'volume_lag_1', 'daily_return')
         
+        # PandasUDF Inputs
+        group_column = 'Symbol'
+        y_column = 'daily_return'
+        x_columns = ['lag_1', 'day_of_week', 'month', 'volume_lag_1']
+        random_state = 10
 
-        self.lr_model_log_string += f"{datetime.now()}: \nTrain RMSE: {training_rmse}\t Test RMSE: {testing_rmse}\n"
-        self.gcp_functions.upload_string_message(bucket_name="stock-sp500", contents=self.lr_model_log_string, destination_blob_name="Models/RMSE_vals.txt")
+        modeling_schema = StructType([StructField('index', IntegerType(), True),
+                                      StructField('symbol', StringType(), True),
+                                      StructField('daily_return', FloatType(), True),
+                                      StructField('pred_daily_return', FloatType(), True),
+                                      StructField('rmse', FloatType(), True)])
 
-        final_preds = test_preds.select('Date', 'Symbol', 'GICS Sector', 'daily_return', 'prediction')
+        @pandas_udf(modeling_schema, PandasUDFType.GROUPED_MAP)
+        # Input/output are both a pandas.DataFrame
+        def linear_regression(pdf):
+            group_key = pdf[group_column].iloc[0]
+            
+            ohe_transform = ColumnTransformer(transformers=[('onehot', OneHotEncoder(), ['day_of_week', 'month'])], 
+                                            remainder='passthrough')
+            
+            X = ohe_transform.fit_transform(pdf[x_columns])    
+            y = pdf[y_column]
 
-        final_preds.coalesce(1)\
-            .write\
-                .option('header', 'true')\
-                    .csv('gs://stock-sp500/Models/ABMD_preds.csv', mode='overwrite')
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=10, shuffle=False)
+            
+            reg = LinearRegression().fit(X_train, y_train)
+            y_preds = reg.predict(X_test)
+            rmse = mean_squared_error(y_test, y_preds, squared=False)
+
+            index = list(range(0, len(y_test)))
+            
+            rmse_df = pd.DataFrame({'index': index, 
+                                    'symbol': group_key, 
+                                    'daily_return': y_test, 
+                                    'pred_daily_return': y_preds,
+                                    'rmse': rmse})
+            
+            # Export the model to a file
+            model_filename = f'{group_key}_lr_model.joblib'
+            joblib.dump(reg, model_filename)
+            
+            
+            bucket_name="stock-sp500"
+            destination_blob_name=f"Modeling/Models/{model_filename}"
+
+            storage_client = storage.Client()
+            bucket = storage_client.bucket(bucket_name)
+            blob = bucket.blob(destination_blob_name)
+
+            blob.upload_from_filename(model_filename)
+            
+            
+            return rmse_df
+        
+        lr_stocks = vars_needed.groupby("Symbol").apply(linear_regression).toPandas()
+        lr_stocks.to_csv("gs://stock-sp500/Modeling/predictions.csv", index = False, header = True)
