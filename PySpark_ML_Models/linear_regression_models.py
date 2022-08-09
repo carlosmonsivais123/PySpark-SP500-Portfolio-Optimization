@@ -3,7 +3,7 @@ from read_data_source import Read_In_Data_Source
 from data_transforms import Data_Model_Transforms
 
 
-from pyspark.sql.types import StructType, StructField, StringType, FloatType, IntegerType
+from pyspark.sql.types import StructType, StructField, StringType, FloatType, TimestampType
 from pyspark.sql.functions import pandas_udf, PandasUDFType
 
 import pandas as pd
@@ -32,11 +32,13 @@ class ML_Model:
         x_columns = ['lag_1', 'day_of_week', 'month', 'volume_lag_1']
         random_state = 10
 
-        modeling_schema = StructType([StructField('index', IntegerType(), True),
-                                      StructField('symbol', StringType(), True),
-                                      StructField('daily_return', FloatType(), True),
-                                      StructField('pred_daily_return', FloatType(), True),
-                                      StructField('rmse', FloatType(), True)])
+        modeling_schema = StructType([StructField('date', TimestampType(), True),
+                                     StructField('symbol', StringType(), True),
+                                     StructField('daily_return', FloatType(), True),
+                                     StructField('pred_daily_return', FloatType(), True),
+                                     StructField('rmse', FloatType(), True)]) 
+
+
 
         @pandas_udf(modeling_schema, PandasUDFType.GROUPED_MAP)
         # Input/output are both a pandas.DataFrame
@@ -55,13 +57,13 @@ class ML_Model:
             y_preds = reg.predict(X_test)
             rmse = mean_squared_error(y_test, y_preds, squared=False)
 
-            index = list(range(0, len(y_test)))
+            dates = pdf.iloc[y_test.index]['Date']
             
-            rmse_df = pd.DataFrame({'index': index, 
-                                    'symbol': group_key, 
-                                    'daily_return': y_test, 
-                                    'pred_daily_return': y_preds,
-                                    'rmse': rmse})
+            preds_df = pd.DataFrame({'date': dates,
+                                     'symbol': group_key, 
+                                     'daily_return': y_test, 
+                                     'pred_daily_return': y_preds,
+                                     'rmse': rmse})
             
             # Export the model to a file
             model_filename = f'{group_key}_lr_model.joblib'
@@ -78,7 +80,7 @@ class ML_Model:
             blob.upload_from_filename(model_filename)
             
             
-            return rmse_df
+            return preds_df
         
         lr_stocks = vars_needed.groupby("Symbol").apply(linear_regression).toPandas()
         lr_stocks.to_csv("gs://stock-sp500/Modeling/predictions.csv", index = False, header = True)
