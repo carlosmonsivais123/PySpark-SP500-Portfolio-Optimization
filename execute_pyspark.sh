@@ -23,6 +23,7 @@ gcloud auth activate-service-account $SERVICE_ACCOUNT --key-file=$JSON_KEY_FILE 
 
 # Uploading Folders and file to GCP Bucket
 Upload_Folders=(
+  Package_Installation
   PySpark_Retrieve_Data
   GCP_Functions
   PySpark_Data
@@ -48,27 +49,29 @@ gcloud dataproc clusters create stock-cluster \
 --worker-machine-type n1-standard-4 --worker-boot-disk-size 500 \
 --image-version 2.0-debian10 \
 --optional-components JUPYTER --scopes 'https://www.googleapis.com/auth/cloud-platform' \
---project airy-digit-356101
+--project airy-digit-356101 \
+--metadata='PIP_PACKAGES=tensorflow==2.8.2 tensorflow_probability==0.16.0' \
+--initialization-actions='gs://stock-sp500/Spark_Files/Package_Installation/pip_install.sh'\
 
 
-# Executing PySpark Files that were uploaded above
-gcloud dataproc jobs submit pyspark 'gs://stock-sp500/Spark_Files/main.py' \
---project=$PROJECT_ID \
---cluster='stock-cluster' \
---region='us-central1' \
---py-files=\
-'gs://stock-sp500/Spark_Files/PySpark_Retrieve_Data/retrieve_data.py',\
-'gs://stock-sp500/Spark_Files/GCP_Functions/upload_to_gcp.py',\
-'gs://stock-sp500/Spark_Files/PySpark_Data/data_cleaning.py',\
-'gs://stock-sp500/Spark_Files/PySpark_Data/data_schema.py',\
-'gs://stock-sp500/Spark_Files/PySpark_Data/read_data_source.py',\
-'gs://stock-sp500/Spark_Files/PySpark_EDA/stock_plots.py',\
-'gs://stock-sp500/Spark_Files/PySpark_Clustering/k_means.py',\
-'gs://stock-sp500/Spark_Files/PySpark_ML_Models/data_transforms.py',\
-'gs://stock-sp500/Spark_Files/PySpark_ML_Models/linear_regression_models.py'\
+# # Executing PySpark Files that were uploaded above
+# gcloud dataproc jobs submit pyspark 'gs://stock-sp500/Spark_Files/main.py' \
+# --project=$PROJECT_ID \
+# --cluster='stock-cluster' \
+# --region='us-central1' \
+# --py-files=\
+# 'gs://stock-sp500/Spark_Files/PySpark_Retrieve_Data/retrieve_data.py',\
+# 'gs://stock-sp500/Spark_Files/GCP_Functions/upload_to_gcp.py',\
+# 'gs://stock-sp500/Spark_Files/PySpark_Data/data_cleaning.py',\
+# 'gs://stock-sp500/Spark_Files/PySpark_Data/data_schema.py',\
+# 'gs://stock-sp500/Spark_Files/PySpark_Data/read_data_source.py',\
+# 'gs://stock-sp500/Spark_Files/PySpark_EDA/stock_plots.py',\
+# 'gs://stock-sp500/Spark_Files/PySpark_Clustering/k_means.py',\
+# 'gs://stock-sp500/Spark_Files/PySpark_ML_Models/data_transforms.py',\
+# 'gs://stock-sp500/Spark_Files/PySpark_ML_Models/linear_regression_models.py'\
 
-# Tableau Data Download
-gsutil cp "gs://stock-sp500/Clustering/k_means_clustered_data.csv" $PWD/Tableau_Data
-gsutil cp "gs://stock-sp500/Data/Correlation_Data/Daily_Returns_Symbol_Correlation_Data.csv" $PWD/Tableau_Data
-gsutil cp "gs://stock-sp500/Data/Correlation_Data/Daily_Returns_Sector_Correlation_Data.csv" $PWD/Tableau_Data
-gsutil cp "gs://stock-sp500/Modeling/predictions.csv" $PWD/Tableau_Data/lr_model_preds.csv
+# # Tableau Data Download
+# gsutil cp "gs://stock-sp500/Clustering/k_means_clustered_data.csv" $PWD/Tableau_Data
+# gsutil cp "gs://stock-sp500/Data/Correlation_Data/Daily_Returns_Symbol_Correlation_Data.csv" $PWD/Tableau_Data
+# gsutil cp "gs://stock-sp500/Data/Correlation_Data/Daily_Returns_Sector_Correlation_Data.csv" $PWD/Tableau_Data
+# gsutil cp "gs://stock-sp500/Modeling/predictions.csv" $PWD/Tableau_Data/lr_model_preds.csv

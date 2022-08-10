@@ -6,6 +6,7 @@ from data_transforms import Data_Model_Transforms
 from pyspark.sql.types import StructType, StructField, StringType, FloatType, TimestampType
 from pyspark.sql.functions import pandas_udf, PandasUDFType
 
+# import gcsfs
 import pandas as pd
 import numpy as np
 import joblib
@@ -15,10 +16,12 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import AdaBoostRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import StandardScaler
 
 class ML_Model:
     def __init__(self):
@@ -51,7 +54,9 @@ class ML_Model:
         def linear_regression(pdf):
             group_key = pdf[group_column].iloc[0]
             
-            ohe_transform = ColumnTransformer(transformers=[('onehot', OneHotEncoder(), ['day_of_week', 'month'])], 
+            ohe_transform = ColumnTransformer(transformers=[('onehot', OneHotEncoder(), ['day_of_week', 'month']),
+                                                            ('scale', StandardScaler(), ['lag_1', 'lag_2', 'lag_3', 
+                                                                                         'lag_4', 'lag_5', 'lag_6', 'volume_lag_1'])], 
                                               remainder='passthrough')
             
             X = ohe_transform.fit_transform(pdf[x_columns])    
@@ -59,7 +64,7 @@ class ML_Model:
 
             X_train, X_test, y_train, y_test = train_test_split(X, 
                                                                 y, 
-                                                                test_size=0.20, 
+                                                                test_size=0.10, 
                                                                 random_state=random_state, 
                                                                 shuffle=False)
             
@@ -67,7 +72,8 @@ class ML_Model:
                           'KNN': KNeighborsRegressor(), 
                           'RF': RandomForestRegressor(random_state = random_state),
                           'GB': GradientBoostingRegressor(random_state=random_state),
-                          'NN': MLPRegressor(random_state=random_state)}
+                          'NN': MLPRegressor(random_state=random_state),
+                          'ADA': AdaBoostRegressor(random_state=random_state)}
             rmse_values = []
             
             for key, value in model_algs.items():
@@ -108,6 +114,15 @@ class ML_Model:
             return pred_df
 
 
-        
         lr_stocks = vars_needed.groupby("Symbol").apply(linear_regression).toPandas()
         lr_stocks.to_csv("gs://stock-sp500/Modeling/predictions.csv", index = False, header = True)
+
+
+    # def read_in_model(self, bucket_name, file_name):
+    #     fs = gcsfs.GCSFileSystem()
+    #     with fs.open(f'{bucket_name}/{file_name}') as f:
+    #         return joblib.load(f)
+
+    # loaded_model_1 = read_in_model('stock-sp500', 'Model_Trial/AAL_lr_model.joblib')
+
+    # loaded_model_1.coef_
