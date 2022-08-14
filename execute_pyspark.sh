@@ -70,7 +70,7 @@ gcloud dataproc jobs submit pyspark 'gs://stock-sp500/Spark_Files/main.py' \
 'gs://stock-sp500/Spark_Files/PySpark_ML_Models/data_transforms.py',\
 'gs://stock-sp500/Spark_Files/PySpark_ML_Models/linear_regression_models.py'\
 
-Tableau Data Download
+# Tableau Data Download
 gsutil cp "gs://stock-sp500/Clustering/k_means_clustered_data.csv" $PWD/Tableau_Data
 gsutil cp "gs://stock-sp500/Data/Correlation_Data/Daily_Returns_Symbol_Correlation_Data.csv" $PWD/Tableau_Data
 gsutil cp "gs://stock-sp500/Data/Correlation_Data/Daily_Returns_Sector_Correlation_Data.csv" $PWD/Tableau_Data
