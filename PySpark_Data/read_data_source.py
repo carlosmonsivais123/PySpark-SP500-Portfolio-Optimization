@@ -9,7 +9,6 @@ class Read_In_Data_Source:
         self.gcp_functions = Upload_To_GCP()
 
 
-
     def read_original_data(self):
         spark = SparkSession.builder.appName("stock").getOrCreate()
         sc = spark.sparkContext

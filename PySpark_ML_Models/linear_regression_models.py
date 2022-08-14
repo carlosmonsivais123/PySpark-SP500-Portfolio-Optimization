@@ -1,6 +1,7 @@
 from upload_to_gcp import Upload_To_GCP
 from read_data_source import Read_In_Data_Source
 from data_transforms import Data_Model_Transforms
+from data_schema import Pandas_UDF_Schema
 
 
 from pyspark.sql.types import StructType, StructField, StringType, FloatType, TimestampType
@@ -30,33 +31,27 @@ class ML_Model:
         self.stock_df_clean = self.read_in_data_source.read_in_data_data_cleaning()
         self.data_model_transforms = Data_Model_Transforms()
 
+        self.pandas_udf_schema = Pandas_UDF_Schema()
+        self.modeling_schema_clean = self.pandas_udf_schema.modeling_schema_clean()
+
 
     def linear_regression_models(self):
-        vars_needed = self.stock_df_clean.select('Symbol', 'Date', 'lag_1', 'lag_2', 'lag_3', 'lag_4', 'lag_5', 'lag_6', 
-                                                 'day_of_week', 'month', 'volume_lag_1', 'daily_return')
+        vars_needed = self.stock_df_clean.select('Symbol', 'Date', 'lag_1', 'day_of_week', 'month', 'volume_lag_1', 'daily_return')
         
         # PandasUDF Inputs
         group_column = 'Symbol'
         y_column = 'daily_return'
-        x_columns = ['lag_1', 'lag_2', 'lag_3', 'lag_4', 'lag_5', 'lag_6', 'day_of_week', 'month', 'volume_lag_1']
+        x_columns = ['lag_1', 'day_of_week', 'month', 'volume_lag_1']
         random_state = 10
 
-        modeling_schema = StructType([StructField('date', TimestampType(), True),
-                                    StructField('symbol', StringType(), True),
-                                    StructField('model_type', StringType(), True),
-                                    StructField('daily_return', FloatType(), True),
-                                    StructField('pred_daily_return', FloatType(), True),
-                                    StructField('rmse', FloatType(), True)]) 
 
-
-        @pandas_udf(modeling_schema, PandasUDFType.GROUPED_MAP)
+        @pandas_udf(self.modeling_schema_clean, PandasUDFType.GROUPED_MAP)
         # Input/output are both a pandas.DataFrame
         def linear_regression(pdf):
             group_key = pdf[group_column].iloc[0]
             
             ohe_transform = ColumnTransformer(transformers=[('onehot', OneHotEncoder(), ['day_of_week', 'month']),
-                                                            ('scale', StandardScaler(), ['lag_1', 'lag_2', 'lag_3', 
-                                                                                         'lag_4', 'lag_5', 'lag_6', 'volume_lag_1'])], 
+                                                            ('scale', StandardScaler(), ['lag_1', 'volume_lag_1'])], 
                                               remainder='passthrough')
             
             X = ohe_transform.fit_transform(pdf[x_columns])    
@@ -112,7 +107,6 @@ class ML_Model:
             blob.upload_from_filename(model_filename)
             
             return pred_df
-
 
         lr_stocks = vars_needed.groupby("Symbol").apply(linear_regression).toPandas()
         lr_stocks.to_csv("gs://stock-sp500/Modeling/predictions.csv", index = False, header = True)
