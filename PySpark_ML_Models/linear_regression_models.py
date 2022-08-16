@@ -63,7 +63,7 @@ class ML_Model:
                                                                 random_state=random_state, 
                                                                 shuffle=False)
             
-            model_algs = {'LR': LinearRegression(), 
+            model_algs = {'LR': LinearRegression(),
                           'KNN': KNeighborsRegressor(), 
                           'RF': RandomForestRegressor(random_state = random_state),
                           'GB': GradientBoostingRegressor(random_state=random_state),
